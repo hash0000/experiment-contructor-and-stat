@@ -1,9 +1,9 @@
-import { ExperimentEntity } from './experiment.entity';
-import { LanguageEntity } from './language.entity';
-import { RowEntity } from './row.entity';
-import { CycleChildEntity, SlideEntity } from './slide.entity';
-import { UserEntity } from './user.entity';
-import { UserCodeEntity } from './userCode.entity';
-import { UserLanguageEntity } from './userLanguage.entity';
+import { ExperimentEntityP } from './experiment.entity';
+import { LanguageEntityP } from './language.entity';
+import { RowEntityP } from './row.entity';
+import { CycleChildEntityP, SlideEntityP } from './slide.entity';
+import { UserEntityP } from './user.entity';
+import { UserCodeEntityP } from './userCode.entity';
+import { UserLanguageEntityP } from './userLanguage.entity';
 
-export const postgresEntities = [UserEntity, LanguageEntity, UserLanguageEntity, UserCodeEntity, ExperimentEntity, SlideEntity, CycleChildEntity, RowEntity];
+export const postgresEntities = [UserEntityP, LanguageEntityP, UserLanguageEntityP, UserCodeEntityP, ExperimentEntityP, SlideEntityP, CycleChildEntityP, RowEntityP];

@@ -1,8 +1,8 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Res } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import responseDescriptionConstant from 'src/common/constants/responseDescription.constant';
-import { MongoIdValidationPipe } from 'src/common/pipes/mongoIdValidation.pipe';
+import { ValidateObjectIdPipe } from 'src/common/pipes/validateObjectId.pipe';
 import { ForbiddenResponse } from 'src/common/responses/forbidden.response';
 import { InternalServerErrorResponse } from 'src/common/responses/internalServerError.response';
 import { UnauthorizedResponse } from 'src/common/responses/unauthorized.response';
@@ -51,7 +51,7 @@ export class StatisticController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async startNextSlide(@Param('sessionId', MongoIdValidationPipe) sessionId: string, @Body() dto: StartNextSlideDto): Promise<CustomResponseType> {
+  private async startNextSlide(@Param('sessionId', ValidateObjectIdPipe) sessionId: string, @Body() dto: StartNextSlideDto): Promise<CustomResponseType> {
     return await this.statisticService.startNextSlide(dto, sessionId);
   }
 
@@ -80,7 +80,7 @@ export class StatisticController {
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
   private async updateStatisticData(
-    @Param('sessionId', MongoIdValidationPipe) sessionId: string,
+    @Param('sessionId', ValidateObjectIdPipe) sessionId: string,
     @Param('slideId', ValidationUuidParamPipe) slideId: string,
     @Body() dto: UpdateStatisticDataDto,
   ): Promise<CustomResponseType> {
@@ -89,6 +89,7 @@ export class StatisticController {
 
   @ApiOperation({ summary: 'Get Excel file' })
   @Get('get-excel-file/:experimentId')
+  @ApiBearerAuth()
   @NoAuth()
   @HttpCode(HttpStatus.OK)
   @ApiResponse({
@@ -149,7 +150,7 @@ export class StatisticController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async finishExperiment(@Param('sessionId', MongoIdValidationPipe) sessionId: string, @Body() dto: FinishExperimentDto): Promise<CustomResponseType> {
+  private async finishExperiment(@Param('sessionId', ValidateObjectIdPipe) sessionId: string, @Body() dto: FinishExperimentDto): Promise<CustomResponseType> {
     return await this.statisticService.finishExperiment(dto, sessionId);
   }
 

@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Column, CreateDateColumn, Entity, Index, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { SlideEntity } from './slide.entity';
-import { UserEntity } from './user.entity';
+import { SlideEntityP } from './slide.entity';
+import { UserEntityP } from './user.entity';
 
 export enum ExperimentSortOptionEnum {
   ALPHABETICAL = 'alphabetical',
@@ -121,7 +121,7 @@ export class ExperimentSettingsBasicRespondentData {
 }
 
 @Entity({ name: 'Experiment' })
-export class ExperimentEntity {
+export class ExperimentEntityP {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -229,17 +229,17 @@ export class ExperimentEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => UserEntity, (User) => User.id, {
+  @ManyToOne(() => UserEntityP, (User) => User.id, {
     nullable: false,
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @Index()
-  user: UserEntity;
+  user: UserEntityP;
 
-  @OneToMany(() => SlideEntity, (slide) => slide.experiment, {
+  @OneToMany(() => SlideEntityP, (slide) => slide.experiment, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
-  slides: SlideEntity[];
+  slides: SlideEntityP[];
 }

@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { UserEntity } from './user.entity';
+import { UserEntityP } from './user.entity';
 
 export enum CodeTypeEnum {
   RECOVER = 'recover',
@@ -7,7 +7,7 @@ export enum CodeTypeEnum {
 }
 
 @Entity({ name: 'UserCode' })
-export class UserCodeEntity {
+export class UserCodeEntityP {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -28,11 +28,11 @@ export class UserCodeEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => UserEntity, (User) => User.id, {
+  @ManyToOne(() => UserEntityP, (User) => User.id, {
     nullable: false,
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @Index()
-  user: UserEntity;
+  user: UserEntityP;
 }

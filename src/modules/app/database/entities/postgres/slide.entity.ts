@@ -1,8 +1,8 @@
 import { Column, Entity, FindOptionsSelect, ManyToOne, OneToMany, PrimaryGeneratedColumn, Unique } from 'typeorm';
-import { ExperimentEntity } from './experiment.entity';
-import { RowEntity } from './row.entity';
+import { ExperimentEntityP } from './experiment.entity';
+import { RowEntityP } from './row.entity';
 
-export const cycleChildEntityBaseSelectOptions: FindOptionsSelect<SlideEntity> = {
+export const cycleChildEntityBaseSelectOptions: FindOptionsSelect<SlideEntityP> = {
   id: true,
   title: true,
   training: true,
@@ -12,7 +12,7 @@ export const cycleChildEntityBaseSelectOptions: FindOptionsSelect<SlideEntity> =
   position: true,
 };
 
-export const slideEntityBaseSelectOptions: FindOptionsSelect<SlideEntity> = {
+export const slideEntityBaseSelectOptions: FindOptionsSelect<SlideEntityP> = {
   ...cycleChildEntityBaseSelectOptions,
   transitionType: true,
   variableId: true,
@@ -66,7 +66,7 @@ export class BaseSlideEntity {
 
 @Entity({ name: 'Slide' })
 @Unique(['experiment', 'position'], { deferrable: 'INITIALLY DEFERRED' })
-export class SlideEntity extends BaseSlideEntity {
+export class SlideEntityP extends BaseSlideEntity {
   @Column({
     default: transitionTypeEnum.SUCCESSIVELY,
   })
@@ -83,46 +83,46 @@ export class SlideEntity extends BaseSlideEntity {
   })
   variableId: string;
 
-  @OneToMany(() => RowEntity, (row) => row.slide, {
+  @OneToMany(() => RowEntityP, (row) => row.slide, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
-  rows: RowEntity[];
+  rows: RowEntityP[];
 
-  @OneToMany(() => CycleChildEntity, (children) => children.cycle, {
+  @OneToMany(() => CycleChildEntityP, (children) => children.cycle, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
-  children: CycleChildEntity[];
+  children: CycleChildEntityP[];
 
-  @ManyToOne(() => ExperimentEntity, (experiment) => experiment.slides, {
+  @ManyToOne(() => ExperimentEntityP, (experiment) => experiment.slides, {
     nullable: false,
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
-  experiment: ExperimentEntity;
+  experiment: ExperimentEntityP;
 }
 
 @Entity({ name: 'CycleChild' })
 @Unique(['cycle', 'position'], { deferrable: 'INITIALLY DEFERRED' })
-export class CycleChildEntity extends BaseSlideEntity {
-  @OneToMany(() => RowEntity, (row) => row.slideChild, {
+export class CycleChildEntityP extends BaseSlideEntity {
+  @OneToMany(() => RowEntityP, (row) => row.slideChild, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
-  rows: RowEntity[];
+  rows: RowEntityP[];
 
-  @ManyToOne(() => ExperimentEntity, (experiment) => experiment.id, {
+  @ManyToOne(() => ExperimentEntityP, (experiment) => experiment.id, {
     nullable: false,
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
-  experiment: ExperimentEntity;
+  experiment: ExperimentEntityP;
 
-  @ManyToOne(() => SlideEntity, (cycle) => cycle.children, {
+  @ManyToOne(() => SlideEntityP, (cycle) => cycle.children, {
     nullable: false,
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
-  cycle: SlideEntity;
+  cycle: SlideEntityP;
 }

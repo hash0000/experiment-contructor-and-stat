@@ -1,31 +1,26 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsEnum, IsNotEmpty, IsString, Length, Validate } from 'class-validator';
-import { trimTransformer } from 'src/common/transformers/trim.transformer';
+import { IsDefined, IsEnum, IsString, Length, Validate } from 'class-validator';
 import { IsGeneralValidationValidator } from '../../../../common/validators/isGeneralValidation.validator';
 import { ExperimentPlatformEnum } from '../../database/entities/postgres/experiment.entity';
+import { IsNotBlank } from '../../../../common/validators/isNotBlank.constraint';
 
 export class CreateExperimentDto {
-  @ApiProperty({ description: 'Title' })
+  @ApiProperty()
   @Validate(IsGeneralValidationValidator)
-  @Transform(({ value }) => trimTransformer(value, 'title'))
   @Length(1, 256)
-  @IsNotEmpty()
+  @IsNotBlank()
   @IsString()
+  @IsDefined()
   readonly title: string;
 
   @ApiProperty()
-  @Transform(({ value }) => trimTransformer(value, 'creators'))
-  @IsNotEmpty()
+  @IsNotBlank()
   @IsString()
+  @IsDefined()
   readonly creators: string;
 
-  @ApiProperty({
-    description: 'Platform',
-    examples: [ExperimentPlatformEnum.CROSS_PLATFORM, ExperimentPlatformEnum.WEB, ExperimentPlatformEnum.MOBILE],
-  })
+  @ApiProperty({ enum: ExperimentPlatformEnum })
   @IsEnum(ExperimentPlatformEnum)
-  @IsNotEmpty()
-  @IsString()
+  @IsDefined()
   readonly platform: ExperimentPlatformEnum;
 }

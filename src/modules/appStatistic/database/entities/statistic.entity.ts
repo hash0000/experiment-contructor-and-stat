@@ -68,7 +68,6 @@ export class StatisticsData {
   variableText: string;
 }
 
-export type StatisticsDataDocument = HydratedDocument<StatisticsData>;
 const StatisticsDataSchema = SchemaFactory.createForClass(StatisticsData);
 
 @Schema({ toObject: { versionKey: false }, toJSON: { versionKey: false }, timestamps: { createdAt: true } })
@@ -127,6 +126,8 @@ class Statistics {
 
 const StatisticsSchema = SchemaFactory.createForClass(Statistics);
 
+export type StatisticDocument = HydratedDocument<Statistic>;
+
 @Schema({ collection: 'statistic', toObject: { versionKey: false }, toJSON: { versionKey: false }, timestamps: { createdAt: true, updatedAt: false } })
 export class Statistic {
   @Prop({ required: true })
@@ -163,7 +164,5 @@ export class Statistic {
   })
   statistics: Statistics[];
 }
-
-export type StatisticDocument = HydratedDocument<Statistic>;
 
 export const StatisticSchema = SchemaFactory.createForClass(Statistic);

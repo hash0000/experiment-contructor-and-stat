@@ -1,9 +1,8 @@
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { ButtonElement } from '../buttonElement';
-import { SliderElement } from '../sliderElement';
-import { TextFieldElement } from '../textFieldElement';
-import { CycleChildEntity, SlideEntity } from './slide.entity';
-import { TextInputElement } from '../textInputElement';
+import { ButtonElement } from '../elements/buttonElement';
+import { SliderElement } from '../elements/sliderElement';
+import { TextFieldElement } from '../elements/textFieldElement';
+import { CycleChildEntityP, SlideEntityP } from './slide.entity';
 
 export enum RowHeightEnum {
   ELEMENT = 'element',
@@ -20,11 +19,10 @@ export enum RowElementEnum {
   TEXT = 'text',
   SLIDER = 'slider',
   BUTTON = 'button',
-  INPUT = 'input',
 }
 
 @Entity({ name: 'Row' })
-export class RowEntity {
+export class RowEntityP {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -52,19 +50,19 @@ export class RowEntity {
     nullable: false,
     default: () => "'[]'",
   })
-  elements: Array<TextFieldElement | SliderElement | ButtonElement | TextInputElement>;
+  elements: Array<TextFieldElement | SliderElement | ButtonElement>;
 
-  @ManyToOne(() => SlideEntity, (Slide) => Slide.rows, {
+  @ManyToOne(() => SlideEntityP, (Slide) => Slide.rows, {
     nullable: true,
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
-  slide: SlideEntity;
+  slide: SlideEntityP;
 
-  @ManyToOne(() => CycleChildEntity, (slideChild) => slideChild.rows, {
+  @ManyToOne(() => CycleChildEntityP, (slideChild) => slideChild.rows, {
     nullable: true,
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
-  slideChild: CycleChildEntity;
+  slideChild: CycleChildEntityP;
 }

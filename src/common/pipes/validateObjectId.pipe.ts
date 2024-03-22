@@ -4,7 +4,7 @@ import { ValidationErrorTypeEnum } from '../enums/errorType.enum';
 import { ValidationException } from '../exceptions/validation.exception';
 
 @Injectable()
-export class MongoIdValidationPipe implements PipeTransform {
+export class ValidateObjectIdPipe implements PipeTransform {
   return;
   value;
 

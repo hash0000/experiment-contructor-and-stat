@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post
 import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SetExperimentStatusSensitive } from 'src/common/decorators/setExperimentStatusSensitive.decorator';
-import { MongoIdValidationPipe } from 'src/common/pipes/mongoIdValidation.pipe';
+import { ValidateObjectIdPipe } from 'src/common/pipes/validateObjectId.pipe';
 import { OkResponse } from 'src/common/responses/ok.response';
 import { UnauthorizedResponse } from 'src/common/responses/unauthorized.response';
 import responseDescriptionConstant from '../../../common/constants/responseDescription.constant';
@@ -13,7 +13,7 @@ import { ForbiddenWithErrorResponse } from '../../../common/responses/forbidden.
 import { InternalServerErrorResponse } from '../../../common/responses/internalServerError.response';
 import { UnprocessableEntityWithErrorResponse } from '../../../common/responses/unprocessableEntityResponse';
 import { CustomResponseType } from '../../../common/types/customResponseType';
-import { UserEntity } from '../database/entities/postgres/user.entity';
+import { UserEntityP } from '../database/entities/postgres/user.entity';
 import { AddColumnsDto } from './dto/addColumnsDto';
 import { AddRowsDto } from './dto/addRowsDto';
 import { CreateVariableDto } from './dto/createVariable.dto';
@@ -97,8 +97,8 @@ export class VariableController {
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
   private async update(
-    @GetCurrentUserIdDecorator() userId: UserEntity['id'],
-    @Param('variableId', MongoIdValidationPipe) variableId: string,
+    @GetCurrentUserIdDecorator() userId: UserEntityP['id'],
+    @Param('variableId', ValidateObjectIdPipe) variableId: string,
     @Body() dto: UpdateVariableDto,
   ): Promise<CustomResponseType> {
     return await this.variableService.update(dto, userId, variableId);
@@ -166,8 +166,8 @@ export class VariableController {
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
   private async addColumns(
-    @GetCurrentUserIdDecorator() userId: UserEntity['id'],
-    @Param('variableId', MongoIdValidationPipe) variableId: string,
+    @GetCurrentUserIdDecorator() userId: UserEntityP['id'],
+    @Param('variableId', ValidateObjectIdPipe) variableId: string,
     @Body() dto: AddColumnsDto,
   ): Promise<CustomResponseType> {
     return await this.variableService.addColumns(dto, userId, variableId);
@@ -203,8 +203,8 @@ export class VariableController {
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
   private async addRows(
-    @GetCurrentUserIdDecorator() userId: UserEntity['id'],
-    @Param('variableId', MongoIdValidationPipe) variableId: string,
+    @GetCurrentUserIdDecorator() userId: UserEntityP['id'],
+    @Param('variableId', ValidateObjectIdPipe) variableId: string,
     @Body() dto: AddRowsDto,
   ): Promise<CustomResponseType> {
     return await this.variableService.addRows(dto, userId, variableId);
@@ -240,8 +240,8 @@ export class VariableController {
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
   private async removeRows(
-    @GetCurrentUserIdDecorator() userId: UserEntity['id'],
-    @Param('variableId', MongoIdValidationPipe) variableId: string,
+    @GetCurrentUserIdDecorator() userId: UserEntityP['id'],
+    @Param('variableId', ValidateObjectIdPipe) variableId: string,
     @Body() dto: RemoveRowsDto,
   ): Promise<CustomResponseType> {
     return await this.variableService.removeRows(dto, userId, variableId);
@@ -278,7 +278,7 @@ export class VariableController {
   })
   private async removeColumns(
     @GetCurrentUserIdDecorator() userId: string,
-    @Param('variableId', MongoIdValidationPipe) variableId: string,
+    @Param('variableId', ValidateObjectIdPipe) variableId: string,
     @Body() dto: RemoveColumnsDto,
   ): Promise<CustomResponseType> {
     return await this.variableService.removeColumns(dto, userId, variableId);
@@ -348,7 +348,7 @@ export class VariableController {
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
   private async readById(
-    @Param('variableId', MongoIdValidationPipe) variableId: string,
+    @Param('variableId', ValidateObjectIdPipe) variableId: string,
     @GetCurrentUserIdDecorator() userId: string,
   ): Promise<CustomResponseType> {
     return await this.variableService.readById(variableId, userId);

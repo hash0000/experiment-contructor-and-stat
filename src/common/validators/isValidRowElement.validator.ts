@@ -5,7 +5,6 @@ import { ButtonElementDto } from 'src/modules/app/database/entities/dto/buttonEl
 import { SliderElementDto } from 'src/modules/app/database/entities/dto/sliderElement.dto';
 import { TextFieldElementDto } from 'src/modules/app/database/entities/dto/textFieldElement.dto';
 import { RowElementEnum } from 'src/modules/app/database/entities/postgres/row.entity';
-import { TextInputElementDto } from '../../modules/app/database/entities/dto/textInputElement.dto';
 import { CustomErrorTypeEnum, ValidationErrorTypeEnum } from '../enums/errorType.enum';
 import { CustomException } from '../exceptions/custom.exception';
 import { ValidationException } from '../exceptions/validation.exception';
@@ -40,14 +39,6 @@ export class IsValidRowElementValidator implements ValidatorConstraintInterface 
             const buttonErrors = await validateElement(ButtonElementDto, element);
             if (buttonErrors?.length) {
               throw new ValidationException(getErrorsArrayFunction(buttonErrors, counter));
-            }
-            samePosArray.push(element.style.position);
-            break;
-          case RowElementEnum.INPUT:
-            const inputErrors = await validateElement(TextInputElementDto, element);
-
-            if (inputErrors?.length) {
-              throw new ValidationException(getErrorsArrayFunction(inputErrors, counter));
             }
             samePosArray.push(element.style.position);
             break;

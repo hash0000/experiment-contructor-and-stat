@@ -4,75 +4,80 @@ import { Cron } from '@nestjs/schedule';
 import { CronExpression } from '@nestjs/schedule/dist/enums/cron-expression.enum';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as dayjs from 'dayjs';
-import * as ruLocale from 'dayjs/locale/ru';
-import * as localizedFormat from 'dayjs/plugin/localizedFormat';
 import * as minMax from 'dayjs/plugin/minMax';
 import { Response } from 'express';
+import * as fs from 'fs';
+import { createReadStream } from 'fs';
 import { ensureDir, writeFile } from 'fs-extra';
 import { find } from 'lodash';
 import mongoose, { Model } from 'mongoose';
-import { createReadStream, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
+import * as path from 'path';
 import { CustomErrorTypeEnum } from 'src/common/enums/errorType.enum';
 import { CustomException } from 'src/common/exceptions/custom.exception';
 import { CustomResponseType } from 'src/common/types/customResponseType';
 import { Repository } from 'typeorm';
-import { WorkBook, utils, write } from 'xlsx-color';
+import * as XLSX from 'xlsx-color';
 import { PostgresDataSource } from '../../../common/configs/typeorm.config';
-import { ExperimentEntity } from '../../app/database/entities/postgres/experiment.entity';
+import { ExperimentEntityP } from '../../app/database/entities/postgres/experiment.entity';
 import { UserSexEnum } from '../../app/database/entities/postgres/user.entity';
 import { Statistic, StatisticDocument, StatisticsData } from '../database/entities/statistic.entity';
 import { FinishExperimentDto } from './dto/finishExperiment.dto';
 import { StartNextSlideDto } from './dto/startNextSlide.dto';
 import { UpdateStatisticDataDto } from './dto/updateStatisticData.dto';
-import { StatisticRepository } from './statistic.repository';
+import * as localizedFormat from 'dayjs/plugin/localizedFormat';
+import * as ruLocale from 'dayjs/locale/ru';
 
 @Injectable()
 export class StatisticService {
   constructor(
     @InjectModel(Statistic.name) private readonly statisticModel: Model<StatisticDocument>,
-    @InjectRepository(ExperimentEntity)
-    private readonly experimentsRepository: Repository<ExperimentEntity>,
+    @InjectRepository(ExperimentEntityP)
+    private readonly experimentsRepository: Repository<ExperimentEntityP>,
     @InjectConnection() private readonly connection: mongoose.Connection,
-    private readonly statisticRep: StatisticRepository,
   ) {}
 
   public async startNextSlide(dto: StartNextSlideDto, sessionId: string): Promise<CustomResponseType> {
-    const countSession = await this.statisticRep.countNotFinishedById(sessionId);
-    if (countSession === 0) {
+    const session = await this.statisticModel
+      .findOne(
+        { _id: sessionId, finished: false },
+        {
+          _id: true,
+          statistics: { slideId: true, jsStartTimestamp: true, data: true, passingPosition: true, isChild: true },
+        },
+      )
+      .exec();
+    if (!session) {
       throw new CustomException({
         statusCode: HttpStatus.FORBIDDEN,
         errorTypeCode: CustomErrorTypeEnum.NO_ACCESS_OR_DATA_NOT_FOUND,
       });
     }
-
-    const currentSlideData = await this.statisticRep.findByIdForNextSlide(sessionId, dto.slideId);
-    if (currentSlideData === null) {
+    const currentSlideData = find(session.statistics, { slideId: dto.slideId });
+    if (!currentSlideData) {
       throw new CustomException({
         statusCode: HttpStatus.NOT_FOUND,
-        errorTypeCode: CustomErrorTypeEnum.NO_DATA_FOR_CURRENT_SLIDE,
+        errorTypeCode: CustomErrorTypeEnum.NO_ACCESS_OR_DATA_NOT_FOUND,
       });
     }
 
     let passingPosition = 1;
 
-    if (dto?.previousSlideId !== undefined) {
-      const previousSlide = await this.statisticRep.findByIdForNextSlide(sessionId, dto.previousSlideId);
-      if (previousSlide === null) {
+    if (dto?.previousSlideId) {
+      const previousSlide = find(session.statistics, { slideId: dto.previousSlideId });
+      if (!previousSlide) {
         throw new CustomException({
           statusCode: HttpStatus.NOT_FOUND,
-          errorTypeCode: CustomErrorTypeEnum.NO_DATA_FOR_PREVIOUS_SLIDE,
+          errorTypeCode: CustomErrorTypeEnum.NO_ACCESS_OR_DATA_NOT_FOUND,
+        });
+      }
+      if (!previousSlide.jsStartTimestamp) {
+        throw new CustomException({
+          statusCode: HttpStatus.NOT_FOUND,
+          errorTypeCode: CustomErrorTypeEnum.NO_ACCESS_OR_DATA_NOT_FOUND,
         });
       }
 
-      if (previousSlide.statistics?.jsStartTimestamp === undefined || previousSlide.statistics?.jsStartTimestamp === null) {
-        throw new CustomException({
-          statusCode: HttpStatus.NOT_FOUND,
-          errorTypeCode: CustomErrorTypeEnum.NO_DATA_FOR_START_TIME_PREVIOUS_SLIDE,
-        });
-      }
-
-      const dataForAnswers = previousSlide.statistics.data.filter((el) => {
+      const dataForAnswers = previousSlide.data.filter((el) => {
         return el;
       });
 
@@ -81,20 +86,18 @@ export class StatisticService {
       dayjs.extend(minMax);
       const maxResponseTime = dayjs.max(dataForAnswers.map((el) => dayjs(el?.jsTimestamp)));
 
-      passingPosition = passingPosition + previousSlide.statistics.passingPosition;
+      passingPosition = passingPosition + previousSlide.passingPosition;
 
-      if (currentSlideData.statistics.isChild === true) {
+      if (previousSlide.isChild) {
         await this.statisticModel.updateOne(
           {
             _id: sessionId,
             statistics: {
-              $elemMatch: { slideId: dto.slideId },
+              $elemMatch: { slideId: previousSlide.slideId },
             },
           },
           {
-            $push: {
-              'statistics.$.inSlideDurationInCycle': dayjs(dto.jsStartTimestamp).diff(dayjs(previousSlide.statistics.jsStartTimestamp), 'milliseconds'),
-            },
+            $push: { 'statistics.$.inSlideDurationInCycle': dayjs(dto.jsStartTimestamp).diff(dayjs(previousSlide.jsStartTimestamp), 'milliseconds') },
           },
         );
       }
@@ -103,11 +106,11 @@ export class StatisticService {
         {
           _id: sessionId,
           statistics: {
-            $elemMatch: { slideId: previousSlide.statistics.slideId },
+            $elemMatch: { slideId: previousSlide.slideId },
           },
         },
         {
-          'statistics.$.inSlideDuration': dayjs(dto.jsStartTimestamp).diff(dayjs(previousSlide.statistics.jsStartTimestamp), 'milliseconds'),
+          'statistics.$.inSlideDuration': dayjs(dto.jsStartTimestamp).diff(dayjs(previousSlide.jsStartTimestamp), 'milliseconds'),
           'statistics.$.answerTime': dayjs(dto.jsStartTimestamp).diff(dayjs(maxResponseTime), 'second') || null,
           'statistics.$.answers': answers.map((item) => item),
         },
@@ -255,7 +258,7 @@ export class StatisticService {
         )
         .session(mongoTransactionSession);
 
-      const experimentForUsersEnded: ExperimentEntity = await this.experimentsRepository.findOne({
+      const experimentForUsersEnded: ExperimentEntityP = await this.experimentsRepository.findOne({
         where: { id: session.experimentId },
         select: { id: true, usersEnded: true, allTimePassing: true },
       });
@@ -267,19 +270,19 @@ export class StatisticService {
       const allTimePassing: number = experimentForUsersEnded.allTimePassing + totalInSlideDuration;
 
       await postgresQueryRunner.manager.update(
-        ExperimentEntity,
+        ExperimentEntityP,
         { id: session.experimentId },
         { usersEnded: experimentForUsersEnded.usersEnded + 1, allTimePassing: allTimePassing },
       );
 
-      const experimentForPassageTime = await postgresQueryRunner.manager.findOne(ExperimentEntity, {
+      const experimentForPassageTime = await postgresQueryRunner.manager.findOne(ExperimentEntityP, {
         where: { id: session.experimentId },
         select: { id: true, usersEnded: true, allTimePassing: true, averagePassageTime: true },
       });
 
       const averagePassageTime: number = Math.round(experimentForPassageTime.allTimePassing / experimentForPassageTime.usersEnded);
 
-      await postgresQueryRunner.manager.update(ExperimentEntity, { id: session.experimentId }, { averagePassageTime: averagePassageTime });
+      await postgresQueryRunner.manager.update(ExperimentEntityP, { id: session.experimentId }, { averagePassageTime: averagePassageTime });
 
       await postgresQueryRunner.commitTransaction();
       await mongoTransactionSession.commitTransaction();
@@ -299,64 +302,6 @@ export class StatisticService {
       await postgresQueryRunner.release();
       await mongoTransactionSession.endSession();
     }
-  }
-
-  public getSexStringFromEnum(sex: UserSexEnum): string {
-    if (sex == UserSexEnum.MALE) {
-      return 'мужской';
-    } else if (sex == UserSexEnum.FEMALE) {
-      return 'женский';
-    } else if (sex == UserSexEnum.NOT_KNOWN) {
-      return 'не указано';
-    } else {
-      return '';
-    }
-  }
-
-  public async exportToExcel(experimentId: string, res: Response) {
-    const statisticArr = await this.statisticRep.selectStatisticForExcel(experimentId);
-
-    if (statisticArr.length === 0) {
-      throw new CustomException({
-        statusCode: HttpStatus.FORBIDDEN,
-        errorTypeCode: CustomErrorTypeEnum.NO_ACCESS_OR_DATA_NOT_FOUND,
-      });
-    }
-
-    const workBook = utils.book_new();
-
-    const firstExcelColumn = await this.getArraysDataForExcel(statisticArr[0]);
-    utils.book_append_sheet(workBook, utils.aoa_to_sheet(firstExcelColumn));
-
-    const workSheet = workBook.Sheets[workBook.SheetNames[0]];
-
-    workSheet['!cols'] = Array.from({ length: 500 }, () => {
-      return { wpx: 250 };
-    });
-
-    for await (const el of statisticArr.slice(1)) {
-      const excelRowArr = await this.getArraysDataForExcel(el);
-
-      utils.sheet_add_aoa(workSheet, [Array.from({ length: 500 }, () => '')], {
-        origin: -1,
-      });
-
-      utils.sheet_add_aoa(workSheet, excelRowArr, { origin: -1 });
-    }
-
-    const experimentTitle = statisticArr.at(-1).experimentTitle;
-
-    return await this.saveExcelFile(workBook, experimentTitle, res);
-  }
-
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  public async deleteUnrealizedSessions() {
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    return await this.statisticModel.deleteMany({ finished: false, createdAt: { $lt: oneDayAgo } }).exec();
-  }
-
-  public async clearAllSessions() {
-    return this.statisticModel.deleteMany({});
   }
 
   private async filteredAnswers(answers: StatisticsData[]) {
@@ -386,118 +331,177 @@ export class StatisticService {
     }));
   }
 
-  private async getArraysDataForExcel(sessions: StatisticDocument) {
-    const excelArr: string[][] = [];
+  public getSexStringFromEnum(sex: UserSexEnum): string {
+    switch (sex) {
+      case UserSexEnum.NOT_KNOWN:
+        return 'не указано';
+      case UserSexEnum.MALE:
+        return 'мужской';
+      case UserSexEnum.FEMALE:
+        return 'женский';
+      default:
+        return '';
+    }
+  }
 
-    const header: string[] = [
-      'debug',
-      'Начало прохождения',
-      'Конец прохождения',
-      'Имя',
-      'Фамилия',
-      'Отчество',
-      'Пол',
-      'Эл.почта',
-      'Телефон',
-      'День рождения',
-      'Родной(ые) язык(и)',
-      'Выученный(ые) язык(и)',
-      'Дополнительные вопросы',
-      'Запрашиваемые данные об эксперименте',
+  public async exportToExcel(experimentId: string, res: Response) {
+    const sessions = await this.statisticModel.find({ experimentId }).exec();
+    if (!sessions?.length) {
+      throw new CustomException({
+        statusCode: HttpStatus.FORBIDDEN,
+        errorTypeCode: CustomErrorTypeEnum.NO_ACCESS_OR_DATA_NOT_FOUND,
+      });
+    }
+
+    const excelArr = [
+      [
+        'Начало прохождения',
+        'Конец прохождения',
+        'Имя',
+        'Фамилия',
+        'Отчество',
+        'Пол',
+        'Эл. почта',
+        'Телефон',
+        'День рождения',
+        'Родной(ые) язык(и)',
+        'Выученный(ые) язык(и)',
+        'Дополнительные вопросы',
+        'Запрашиваемые данные об эксперименте',
+      ],
     ];
 
     dayjs.extend(localizedFormat);
     dayjs.locale(ruLocale);
 
-    const sessionDataArray: string[] = [
-      String(sessions._id),
-      String(dayjs(new Date(sessions.jsStartTimestamp)).format('dd, DD MMM YYYY HH:mm:ss')) || '-',
-      sessions.jsFinishTimestamp ? String(dayjs(new Date(sessions.jsFinishTimestamp)).format('dd, DD MMM YYYY HH:mm:ss')) : '-',
-      sessions.respondent.firstName || '-',
-      sessions.respondent.lastName || '-',
-      sessions.respondent.middleName || '-',
-      sessions.respondent.sex ? this.getSexStringFromEnum(Number(sessions.respondent.sex)) : '-',
-      sessions.respondent.email || '-',
-      sessions.respondent.phone || '-',
-      sessions.respondent.birthday ? sessions.respondent.birthday.toISOString().split('T')[0] : '-',
-      sessions.respondent.nativeLanguages.join(', ') || '-',
-      sessions.respondent.learnedLanguages.join(', ') || '-',
-      sessions.respondent.requestedQuestions.join(', ') || '-',
-      sessions.respondent.requestedParametersRespondentData.join(', ') || '-',
-    ];
+    const headerArr: string[] = [];
+    for (const el of sessions[0].statistics) {
+      headerArr.push(
+        `Слайд: ${el.slideTitle} ${el.isTraining ? '(тренировочный)' : ''}. Переменные`,
+        `Слайд: ${el.slideTitle}. Ответы`,
+        `Время нахождения на слайде: ${el.slideTitle}`,
+      );
+    }
+    excelArr[0].push(...headerArr);
 
-    for (const el of sessions.statistics) {
-      if (el.answers.length > 0) {
-        for (const [index, elem] of el.answers.entries()) {
-          header.push(`Слайд: ${el.slideTitle} ${el.isTraining ? '(тренировочный)' : ''}`.trim()); // answers
-          header.push('Переменная'); // variable
-          header.push(`Время нахождения на слайде: ${el.slideTitle}`.trim()); // in slide duration
-
-          if (elem.answers.length > 1) {
-            sessionDataArray.push(elem.answers.join('; '));
-          } else if (elem.answers.length === 1) {
-            sessionDataArray.push(elem.answers[0]);
-          }
-
-          sessionDataArray.push(elem.variable);
-
-          const inSlideDuration = el.isChild
-            ? el.inSlideDurationInCycle.length
-              ? `${(el.inSlideDurationInCycle[index] / 1000).toFixed(3)} сек`
-              : '-'
-            : el.inSlideDuration
-              ? `${(el.inSlideDuration / 1000).toFixed(3)} сек`
-              : '-';
-
-          sessionDataArray.push(inSlideDuration);
+    for (const el of sessions) {
+      const sessionDataArray: string[] = [
+        String(dayjs(new Date(el.jsStartTimestamp)).format('dd, DD MMM YYYY HH:mm:ss')) || '-',
+        el.jsFinishTimestamp ? String(dayjs(new Date(el.jsFinishTimestamp)).format('dd, DD MMM YYYY HH:mm:ss')) : '-',
+        el.respondent.firstName || '-',
+        el.respondent.lastName || '-',
+        el.respondent.middleName || '-',
+        el.respondent.sex ? this.getSexStringFromEnum(Number(el.respondent.sex)) : '-',
+        el.respondent.email || '-',
+        el.respondent.phone || '-',
+        el.respondent.birthday ? el.respondent.birthday.toISOString().split('T')[0] : '-',
+        el.respondent.nativeLanguages.join(', ') || '-',
+        el.respondent.learnedLanguages.join(', ') || '-',
+        el.respondent.requestedQuestions.join(', ') || '-',
+        el.respondent.requestedParametersRespondentData.join(', ') || '-',
+      ];
+      for (const elem of el.statistics) {
+        const value = elem.answers.flatMap((item) => item.variable).join('; ') || '-';
+        const answers = elem.answers.map((item) => item.answers).join('; ') || '-';
+        let inSlideDuration;
+        if (elem.isChild) {
+          inSlideDuration = elem.inSlideDurationInCycle.length ? `${elem.inSlideDurationInCycle.map((item) => (item / 1000).toFixed(3)).join('; ')} сек` : '-';
+        } else {
+          inSlideDuration = elem.inSlideDuration ? `${(elem.inSlideDuration / 1000).toFixed(3)} сек` : '-';
         }
-      } else {
-        header.push(`Слайд: ${el.slideTitle} ${el.isTraining ? '(тренировочный)' : ''}`.trim()); // answers
-        header.push('Переменная'); // variable
-        header.push(`Время нахождения на слайде: ${el.slideTitle}`.trim()); // in slide duration
-
-        sessionDataArray.push('-');
-
-        sessionDataArray.push('-');
-
-        const inSlideDuration = el.inSlideDuration ? `${(el.inSlideDuration / 1000).toFixed(3)} сек` : '-';
-        sessionDataArray.push(inSlideDuration);
+        sessionDataArray.push(value, answers, inSlideDuration);
       }
+
+      excelArr.push(sessionDataArray);
     }
 
-    excelArr.push(header);
-    excelArr.push(sessionDataArray);
+    const ws = XLSX.utils.aoa_to_sheet(excelArr);
+    const wb = XLSX.utils.book_new();
 
-    return excelArr;
-  }
+    const HEADER_ROW = 1;
+    const RANGE = XLSX.utils.decode_range(ws['!ref']);
+    for (let index = 0; index <= RANGE.e.c; index++) {
+      ws[XLSX.utils.encode_col(index) + HEADER_ROW].s = {
+        font: { bold: true, size: 10 },
+        fill: { patternType: 'solid', fgColor: { rgb: 'DFDBC6' } },
+        border: {
+          bottom: { style: 'medium' },
+          left: { style: 'thin' },
+          right: { style: 'thin' },
+        },
+      };
+      const columnWidth = { wpx: 250 };
 
-  private async saveExcelFile(wb: WorkBook, experimentTitle: string, res: Response) {
-    const buffer = write(wb, { type: 'array', bookType: 'xlsx' });
+      ws['!cols'] = ws['!cols'] || [];
+      ws['!cols'][index] = columnWidth;
+    }
 
-    const fileName = `${experimentTitle}-${new Date().toLocaleDateString('ru-RU')}.xlsx`.replace(/ /g, '-');
+    XLSX.utils.book_append_sheet(wb, ws, sessions[0].experimentTitle);
 
-    const folder = join(__dirname, '../../../static/xlsx');
+    const buffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const currentDate = new Date();
+    const formattedDate = currentDate.toISOString().replace(/:/g, '-');
+    const fileName = `${sessions[0].experimentTitle}-${formattedDate}.xlsx`.replace(/ /g, '-');
+
+    const folder = path.join(__dirname, '../../../static/xlsx');
     await ensureDir(folder);
-
-    const filePath = join(folder, fileName);
+    const filePath = path.join(folder, fileName);
     await writeFile(filePath, new Uint8Array(buffer));
+
+    const fileStream = createReadStream(filePath);
 
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
-    const fileStream = createReadStream(filePath);
-
     fileStream.pipe(res);
+  }
 
-    fileStream.on('end', async () => {
-      try {
-        unlinkSync(filePath);
-      } catch (e) {
-        console.log(e);
-        throw new CustomException({
-          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        });
+  @Cron(CronExpression.EVERY_2_HOURS)
+  public async cleanupFiles() {
+    const folder = path.join(__dirname, '../../../static/xlsx');
+    if (!fs.existsSync(folder)) {
+      return;
+    }
+    const files = fs.readdirSync(folder);
+    if (!files) {
+      return;
+    }
+
+    const currentDate = new Date();
+
+    files.forEach((fileName) => {
+      const fileTime = this.extractFileTimeFromName(fileName);
+
+      if (fileTime) {
+        const differenceInTime = currentDate.getTime() - fileTime.getTime();
+        const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
+        if (differenceInTime >= oneDayInMilliseconds) {
+          const filePath = path.join(folder, fileName);
+          fs.unlinkSync(filePath);
+        }
       }
     });
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  public async deleteUnrealizedSessions() {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    return await this.statisticModel.deleteMany({ finished: false, createdAt: { $lt: oneDayAgo } }).exec();
+  }
+
+  public async clearAllSessions() {
+    return this.statisticModel.deleteMany({});
+  }
+
+  private extractFileTimeFromName(fileName: string): Date | null {
+    const pattern = /(\d{4}-\d{2}-\d{2})T\d{2}-\d{2}-\d{2}.\d{3}Z/;
+    const match = fileName.match(pattern);
+
+    if (match) {
+      const fileTime = match[1];
+      return new Date(fileTime);
+    }
+
+    return null;
   }
 }

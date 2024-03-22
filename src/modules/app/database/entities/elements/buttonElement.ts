@@ -1,5 +1,5 @@
 import { BaseElementFields } from './baseElementFields';
-import { RowElementEnum } from './postgres/row.entity';
+import { RowElementEnum } from '../postgres/row.entity';
 import { getDefaultStyle, StyleFields } from './styleFields';
 
 export enum ButtonActionEnum {

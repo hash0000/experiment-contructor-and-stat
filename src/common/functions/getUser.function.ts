@@ -1,9 +1,9 @@
 import { HttpStatus } from '@nestjs/common';
-import { UserEntity } from 'src/modules/app/database/entities/postgres/user.entity';
+import { UserEntityP } from 'src/modules/app/database/entities/postgres/user.entity';
 import { PostgresDataSource } from '../configs/typeorm.config';
 import { CustomException } from '../exceptions/custom.exception';
 
-async function getUser(whereData: string, property = 'id', select?: object): Promise<UserEntity> {
+async function getUser(whereData: string, property = 'id', select?: object): Promise<UserEntityP> {
   const queryRunner = PostgresDataSource.createQueryRunner();
   try {
     await queryRunner.connect();
@@ -28,7 +28,7 @@ async function getUser(whereData: string, property = 'id', select?: object): Pro
       selectOption = select;
     }
 
-    const userEntity = await queryRunner.manager.getRepository(UserEntity).findOne({
+    const userEntity = await queryRunner.manager.getRepository(UserEntityP).findOne({
       where: { [`${property}`]: whereData },
       select: selectOption,
     });

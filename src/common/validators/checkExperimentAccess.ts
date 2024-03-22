@@ -1,7 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
-import { ExperimentEntity, ExperimentStatusEnum } from 'src/modules/app/database/entities/postgres/experiment.entity';
-import { RowEntity } from '../../modules/app/database/entities/postgres/row.entity';
-import { CycleChildEntity, SlideEntity } from '../../modules/app/database/entities/postgres/slide.entity';
+import { ExperimentEntityP, ExperimentStatusEnum } from 'src/modules/app/database/entities/postgres/experiment.entity';
+import { RowEntityP } from '../../modules/app/database/entities/postgres/row.entity';
+import { CycleChildEntityP, SlideEntityP } from '../../modules/app/database/entities/postgres/slide.entity';
 import { PostgresDataSource } from '../configs/typeorm.config';
 import { ExperimentAccessByEnum } from '../enums/experimentAccessBy.enum';
 import { ExperimentAccessStatusEnum } from '../enums/experimentAccessStatus.enum';
@@ -20,7 +20,7 @@ export async function CheckExperimentAccess(
     switch (accessBy) {
       case ExperimentAccessByEnum.EXPERIMENT:
         if (publishedSensitive) {
-          const temp = await queryRunner.manager.getRepository(ExperimentEntity).findOne({
+          const temp = await queryRunner.manager.getRepository(ExperimentEntityP).findOne({
             where: {
               id: entryId,
               user: {
@@ -40,7 +40,7 @@ export async function CheckExperimentAccess(
             return ExperimentAccessStatusEnum.ACCESS_ALLOW;
           }
         } else {
-          count = await queryRunner.manager.getRepository(ExperimentEntity).count({
+          count = await queryRunner.manager.getRepository(ExperimentEntityP).count({
             where: {
               id: entryId,
               user: {
@@ -53,7 +53,7 @@ export async function CheckExperimentAccess(
 
       case ExperimentAccessByEnum.SLIDE:
         if (publishedSensitive) {
-          const temp = await queryRunner.manager.getRepository(SlideEntity).findOne({
+          const temp = await queryRunner.manager.getRepository(SlideEntityP).findOne({
             where: {
               id: entryId,
               experiment: {
@@ -80,7 +80,7 @@ export async function CheckExperimentAccess(
             return ExperimentAccessStatusEnum.ACCESS_ALLOW;
           }
         } else {
-          count = await queryRunner.manager.getRepository(SlideEntity).count({
+          count = await queryRunner.manager.getRepository(SlideEntityP).count({
             where: {
               id: entryId,
               experiment: {
@@ -95,7 +95,7 @@ export async function CheckExperimentAccess(
 
       case ExperimentAccessByEnum.ROW:
         if (publishedSensitive) {
-          const temp = await queryRunner.manager.getRepository(RowEntity).findOne({
+          const temp = await queryRunner.manager.getRepository(RowEntityP).findOne({
             where: {
               id: entryId,
               slide: {
@@ -133,7 +133,7 @@ export async function CheckExperimentAccess(
             return ExperimentAccessStatusEnum.ACCESS_ALLOW;
           }
         } else {
-          count = await queryRunner.manager.getRepository(RowEntity).count({
+          count = await queryRunner.manager.getRepository(RowEntityP).count({
             where: {
               id: entryId,
               slide: {
@@ -150,7 +150,7 @@ export async function CheckExperimentAccess(
 
       case ExperimentAccessByEnum.ROW_ELEM_CHILD:
         if (publishedSensitive) {
-          const temp = await queryRunner.manager.getRepository(RowEntity).findOne({
+          const temp = await queryRunner.manager.getRepository(RowEntityP).findOne({
             where: {
               id: entryId,
               slideChild: {
@@ -192,7 +192,7 @@ export async function CheckExperimentAccess(
             return ExperimentAccessStatusEnum.ACCESS_ALLOW;
           }
         } else {
-          count = await queryRunner.manager.getRepository(RowEntity).count({
+          count = await queryRunner.manager.getRepository(RowEntityP).count({
             where: {
               id: entryId,
               slideChild: {
@@ -211,7 +211,7 @@ export async function CheckExperimentAccess(
 
       case ExperimentAccessByEnum.CYCLE_CHILD:
         if (publishedSensitive) {
-          const temp = await queryRunner.manager.getRepository(CycleChildEntity).findOne({
+          const temp = await queryRunner.manager.getRepository(CycleChildEntityP).findOne({
             where: {
               id: entryId,
               cycle: {
@@ -247,7 +247,7 @@ export async function CheckExperimentAccess(
             return ExperimentAccessStatusEnum.ACCESS_ALLOW;
           }
         } else {
-          count = await queryRunner.manager.getRepository(CycleChildEntity).count({
+          count = await queryRunner.manager.getRepository(CycleChildEntityP).count({
             where: {
               id: entryId,
               cycle: {

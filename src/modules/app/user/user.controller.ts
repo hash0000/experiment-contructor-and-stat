@@ -17,7 +17,7 @@ import { OkResponse } from '../../../common/responses/ok.response';
 import { UnauthorizedResponse } from '../../../common/responses/unauthorized.response';
 import { UnprocessableEntityWithErrorResponse } from '../../../common/responses/unprocessableEntityResponse';
 import { JwtPayloadWithTimeType } from '../../../common/types/jwtPayloadWithTime.type';
-import { LanguageEntity } from '../database/entities/postgres/language.entity';
+import { LanguageEntityP } from '../database/entities/postgres/language.entity';
 import { CreateUserDto } from './dto/createUser.dto';
 import { CreateUserLanguageDto } from './dto/createUserLanguage.dto';
 import { DeleteUserLanguageDto } from './dto/deleteUserLanguage.dto';
@@ -44,8 +44,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 export class UserController {
   constructor(
     private readonly userService: UserService,
-    @InjectRepository(LanguageEntity)
-    private readonly languagesRepository: Repository<LanguageEntity>,
+    @InjectRepository(LanguageEntityP)
+    private readonly languagesRepository: Repository<LanguageEntityP>,
   ) {}
 
   @ApiOperation({ summary: 'Sign in' })

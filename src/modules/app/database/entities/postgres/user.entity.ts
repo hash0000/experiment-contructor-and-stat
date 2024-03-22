@@ -13,7 +13,7 @@ export enum UserSexEnum {
 }
 
 @Entity({ name: 'User' })
-export class UserEntity {
+export class UserEntityP {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -124,7 +124,7 @@ export class UserEntity {
   }
 }
 
-export async function hashPassword(password: UserEntity['password']) {
+export async function hashPassword(password: UserEntityP['password']) {
   return await argon.hash(password, {
     type: 2,
     salt: Buffer.from(process.env.SALT, 'utf-8'),

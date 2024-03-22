@@ -1,24 +1,10 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsDefined,
-  IsIn,
-  IsMongoId,
-  IsNotEmpty,
-  IsNotEmptyObject,
-  IsObject,
-  IsOptional,
-  IsString,
-  Length,
-  MaxLength,
-  Validate,
-  ValidateIf,
-  ValidateNested,
-} from 'class-validator';
+import { IsDefined, IsIn, IsMongoId, IsNotEmpty, IsNotEmptyObject, IsObject, IsString, Length, Validate, ValidateIf, ValidateNested } from 'class-validator';
 import { IsGeneralValidationValidator } from '../../../../../common/validators/isGeneralValidation.validator';
 import { RowElementEnum } from '../postgres/row.entity';
 import { BaseElementFieldsDto } from './baseElementFields.dto';
 import { StyleFieldsDto } from './styleFields.dto';
-import { IsNotBlank } from '../../../../../common/validators/isNotBlank.constraint';
 
 export class TextFieldElementDto extends BaseElementFieldsDto {
   @IsIn([RowElementEnum.TEXT])
@@ -38,16 +24,11 @@ export class TextFieldElementDto extends BaseElementFieldsDto {
   @ValidateIf((object, value) => value !== null)
   readonly value: string;
 
+  @ApiProperty()
   @IsMongoId()
   @IsString()
   @IsNotEmpty()
   @IsDefined()
   @ValidateIf((_, value) => value !== null)
   readonly variableId: string;
-
-  @MaxLength(255)
-  @IsNotBlank()
-  @IsString()
-  @IsOptional()
-  readonly variableValue: string;
 }

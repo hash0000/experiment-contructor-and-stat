@@ -1,6 +1,5 @@
-import { ButtonElement } from '../../modules/app/database/entities/buttonElement';
-import { SliderElement } from '../../modules/app/database/entities/sliderElement';
-import { TextFieldElement } from '../../modules/app/database/entities/textFieldElement';
-import { TextInputElement } from '../../modules/app/database/entities/textInputElement';
+import { ButtonElement } from '../../modules/app/database/entities/elements/buttonElement';
+import { SliderElement } from '../../modules/app/database/entities/elements/sliderElement';
+import { TextFieldElement } from '../../modules/app/database/entities/elements/textFieldElement';
 
-export const elementsArray = [new TextFieldElement(), new ButtonElement(), new SliderElement(), new TextInputElement()];
+export const elementsArray = [new TextFieldElement(), new ButtonElement(), new SliderElement()];

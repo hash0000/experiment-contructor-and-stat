@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
-import { ExperimentEntity } from 'src/modules/app/database/entities/postgres/experiment.entity';
-import { UserEntity } from 'src/modules/app/database/entities/postgres/user.entity';
+import { ExperimentEntityP } from 'src/modules/app/database/entities/postgres/experiment.entity';
+import { UserEntityP } from 'src/modules/app/database/entities/postgres/user.entity';
 import { PostgresDataSource } from '../configs/typeorm.config';
 import { ValidationErrorTypeEnum } from '../enums/errorType.enum';
 import { CustomException } from '../exceptions/custom.exception';
@@ -8,7 +8,7 @@ import { CustomException } from '../exceptions/custom.exception';
 export async function isUniqueExperimentColumnForUserValidator(
   value: string,
   column: string,
-  userId: UserEntity['id'],
+  userId: UserEntityP['id'],
   id?: string,
   isUpdate?: boolean,
 ): Promise<void> {
@@ -17,9 +17,9 @@ export async function isUniqueExperimentColumnForUserValidator(
     await queryRunner.connect();
 
     const experimentEntity = await queryRunner.manager
-      .getRepository(ExperimentEntity)
+      .getRepository(ExperimentEntityP)
       .createQueryBuilder('experiment')
-      .leftJoinAndMapOne('experiment.userId', UserEntity, 'user', 'user.id = experiment."userId"')
+      .leftJoinAndMapOne('experiment.userId', UserEntityP, 'user', 'user.id = experiment."userId"')
       .where('user.id = :userId', { userId: userId })
       .andWhere(`${column} = :value`, { value: value })
       .select(['experiment.id', 'experiment.title', 'experiment.id', 'user.id'])

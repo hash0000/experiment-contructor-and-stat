@@ -9,12 +9,11 @@ import { ExperimentAccessByEnum } from 'src/common/enums/experimentAccessBy.enum
 import { ExperimentAccessStatusEnum } from 'src/common/enums/experimentAccessStatus.enum';
 import { CheckExperimentAccess } from 'src/common/validators/checkExperimentAccess';
 import { isEmptyObject } from 'src/common/validators/isEmptyObject.validator';
-import { Variable, VariableDocument } from 'src/modules/app/database/entities/mongo/variable.schema';
 import { Repository } from 'typeorm';
 import { CustomErrorTypeEnum, ValidationErrorTypeEnum } from '../../../common/enums/errorType.enum';
 import { CustomException } from '../../../common/exceptions/custom.exception';
 import { CustomResponseType } from '../../../common/types/customResponseType';
-import { ExperimentEntity, ExperimentStatusEnum } from '../database/entities/postgres/experiment.entity';
+import { ExperimentEntityP, ExperimentStatusEnum } from '../database/entities/postgres/experiment.entity';
 import { AddColumnsDto } from './dto/addColumnsDto';
 import { AddRowsDto } from './dto/addRowsDto';
 import { CreateVariableDto } from './dto/createVariable.dto';
@@ -22,12 +21,14 @@ import { DeleteVariableDto } from './dto/deleteVariable.dto';
 import { RemoveColumnsDto } from './dto/removeColumns.dto';
 import { RemoveRowsDto } from './dto/removeRows.dto';
 import { UpdateVariableDto } from './dto/updateVariable.dto';
+import { VariableDocument } from '../database/entities/variable.schema';
+import { entityNameConstant } from '../../../common/constants/entityName.constant';
 
 @Injectable()
 export class VariableService {
   constructor(
-    @InjectModel(Variable.name) private readonly variableModel: Model<VariableDocument>,
-    @InjectRepository(ExperimentEntity) private readonly experimentsRepository: Repository<ExperimentEntity>,
+    @InjectModel(entityNameConstant.VARIABLE) private readonly variableModel: Model<VariableDocument>,
+    @InjectRepository(ExperimentEntityP) private readonly experimentsRepository: Repository<ExperimentEntityP>,
     @InjectConnection() private readonly connection: mongoose.Connection,
   ) {}
 
@@ -189,7 +190,7 @@ export class VariableService {
         if (!variableModel) {
           throw CustomErrorTypeEnum.NO_ACCESS_OR_DATA_NOT_FOUND;
         }
-        const experimentEntity = await postgresQueryRunner.manager.findOne(ExperimentEntity, {
+        const experimentEntity = await postgresQueryRunner.manager.findOne(ExperimentEntityP, {
           where: {
             id: variableModel.experimentId,
             user: {
@@ -220,7 +221,7 @@ export class VariableService {
         }, []);
 
         await postgresQueryRunner.manager.update(
-          ExperimentEntity,
+          ExperimentEntityP,
           { id: variableModel.experimentId },
           { requestedParametersRespondentData: preparedRequestedParametersRespondentData },
         );
@@ -545,7 +546,7 @@ export class VariableService {
     const whereOption: object = { [field]: { $in: data } };
     if (variableId) whereOption['_id'] = variableId;
     if (experimentId) whereOption['experimentId'] = experimentId;
-    const count = await this.variableModel.countDocuments(whereOption);
+    const count = await this.variableModel.count(whereOption);
     return !count;
   }
 }

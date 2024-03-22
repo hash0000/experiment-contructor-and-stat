@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsDefined, IsEnum, IsIn, IsNotEmpty, IsNotEmptyObject, IsNumber, IsObject, IsString, Length, Validate, ValidateNested } from 'class-validator';
 import { IsGeneralValidationValidator } from '../../../../../common/validators/isGeneralValidation.validator';
-import { ButtonActionEnum } from '../buttonElement';
+import { ButtonActionEnum } from '../elements/buttonElement';
 import { RowElementEnum } from '../postgres/row.entity';
 import { BaseElementFieldsDto } from './baseElementFields.dto';
 import { StyleFieldsDto } from './styleFields.dto';

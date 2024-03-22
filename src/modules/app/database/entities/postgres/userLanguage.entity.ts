@@ -1,6 +1,6 @@
 import { Column, Entity, Index, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { LanguageEntity } from './language.entity';
-import { UserEntity } from './user.entity';
+import { LanguageEntityP } from './language.entity';
+import { UserEntityP } from './user.entity';
 
 export enum UserLanguageProficiencyEnum {
   ELEMENTARY = 'A1',
@@ -14,7 +14,7 @@ export enum UserLanguageProficiencyEnum {
 
 @Entity({ name: 'UserLanguage' })
 @Index(['user', 'language'], { unique: true })
-export class UserLanguageEntity {
+export class UserLanguageEntityP {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -26,19 +26,19 @@ export class UserLanguageEntity {
   })
   proficiency: UserLanguageProficiencyEnum;
 
-  @ManyToOne(() => UserEntity, (user) => user.id, {
+  @ManyToOne(() => UserEntityP, (user) => user.id, {
     nullable: false,
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @Index()
-  user: UserEntity;
+  user: UserEntityP;
 
-  @ManyToOne(() => LanguageEntity, (language) => language.id, {
+  @ManyToOne(() => LanguageEntityP, (language) => language.id, {
     nullable: false,
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @Index()
-  language: LanguageEntity;
+  language: LanguageEntityP;
 }

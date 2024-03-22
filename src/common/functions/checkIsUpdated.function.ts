@@ -1,23 +1,11 @@
 import { HttpStatus } from '@nestjs/common';
-import { UpdateResult } from 'typeorm';
+import { UpdateWriteOpResult } from 'mongoose';
 import { CustomException } from '../exceptions/custom.exception';
 
-function checkIsUpdated(entity: UpdateResult): void {
-  try {
-    if (entity.affected === 0) {
-      throw HttpStatus.BAD_REQUEST;
-    }
-  } catch (e) {
-    if (e === HttpStatus.BAD_REQUEST) {
-      throw new CustomException({
-        statusCode: HttpStatus.BAD_REQUEST,
-      });
-    }
-    console.log(e);
+export function checkIsUpdated(updateResult: UpdateWriteOpResult): void {
+  if (updateResult.matchedCount === 0) {
     throw new CustomException({
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      statusCode: HttpStatus.BAD_REQUEST,
     });
   }
 }
-
-export default checkIsUpdated;

@@ -1,5 +1,5 @@
 import { isArray, registerDecorator, ValidationArguments, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
-import { VariableColumn, VariableValue } from '../../../modules/app/database/entities/mongo/variable.schema';
+import { VariableColumn, VariableValue } from '../../../modules/app/database/entities/variable.schema';
 
 @ValidatorConstraint({ name: 'isValidVariableArraysLength', async: false })
 export class IsValidVariableArraysLengthConstraint implements ValidatorConstraintInterface {

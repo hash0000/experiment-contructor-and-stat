@@ -3,25 +3,24 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { PostgresDataSource } from 'src/common/configs/typeorm.config';
 import { CustomException } from 'src/common/exceptions/custom.exception';
 import { CustomResponseType } from 'src/common/types/customResponseType';
-import { CycleChildEntity, SlideEntity } from 'src/modules/app/database/entities/postgres/slide.entity';
+import { CycleChildEntityP, SlideEntityP } from 'src/modules/app/database/entities/postgres/slide.entity';
 import { Not, Repository } from 'typeorm';
 import { CustomErrorTypeEnum, ValidationErrorTypeEnum } from '../../../common/enums/errorType.enum';
-import { ButtonElement } from '../database/entities/buttonElement';
-import { RowElementEnum, RowEntity, RowMaxColumnEnum } from '../database/entities/postgres/row.entity';
-import { SliderElement } from '../database/entities/sliderElement';
-import { TextFieldElement } from '../database/entities/textFieldElement';
+import { ButtonElement } from '../database/entities/elements/buttonElement';
+import { RowElementEnum, RowEntityP, RowMaxColumnEnum } from '../database/entities/postgres/row.entity';
+import { SliderElement } from '../database/entities/elements/sliderElement';
+import { TextFieldElement } from '../database/entities/elements/textFieldElement';
 import { CreateRowDto } from './dto/createRow.dto';
 import { CreateRowElementDto } from './dto/createRowElement.dto';
 import { UpdateRowElementsDto } from './dto/updateRowElements.dto';
-import { TextInputElement } from '../database/entities/textInputElement';
 
 @Injectable()
 export class RowService {
   constructor(
-    @InjectRepository(RowEntity)
-    private readonly rowsRepository: Repository<RowEntity>,
-    @InjectRepository(SlideEntity)
-    private readonly slidesRepository: Repository<SlideEntity>,
+    @InjectRepository(RowEntityP)
+    private readonly rowsRepository: Repository<RowEntityP>,
+    @InjectRepository(SlideEntityP)
+    private readonly slidesRepository: Repository<SlideEntityP>,
   ) {}
 
   public async createRow(dto: CreateRowDto, id: string, isChild?: boolean): Promise<CustomResponseType> {
@@ -34,14 +33,14 @@ export class RowService {
     const rowsEntity = await this.rowsRepository.find({
       where: whereOptionRows,
     });
-    let newRowEntity: RowEntity = new RowEntity();
+    let newRowEntity: RowEntityP = new RowEntityP();
     newRowEntity.maxColumn = dto.maxColumn;
 
     if (isChild) {
-      newRowEntity.slideChild = new CycleChildEntity();
+      newRowEntity.slideChild = new CycleChildEntityP();
       newRowEntity.slideChild.id = id;
     } else {
-      newRowEntity.slide = new SlideEntity();
+      newRowEntity.slide = new SlideEntityP();
       newRowEntity.slide.id = id;
     }
 
@@ -174,7 +173,7 @@ export class RowService {
     try {
       await queryRunner.connect().then(async () => await queryRunner.startTransaction());
 
-      await queryRunner.manager.delete(RowEntity, whereOption);
+      await queryRunner.manager.delete(RowEntityP, whereOption);
       await queryRunner.commitTransaction();
       return {
         statusCode: HttpStatus.OK,
@@ -358,7 +357,7 @@ export class RowService {
     }
   }
 
-  private async generateRowElement(rowEntity: RowEntity, dto: CreateRowElementDto, isCycle?: boolean): Promise<CustomResponseType> {
+  private async generateRowElement(rowEntity: RowEntityP, dto: CreateRowElementDto, isCycle?: boolean): Promise<CustomResponseType> {
     const newRowElement = this.getElementClass(dto.type);
     newRowElement.style.position = dto.position;
     newRowElement.title = `${dto.type} ${rowEntity.position}${newRowElement.style.position}`;
@@ -429,7 +428,7 @@ export class RowService {
     }
   }
 
-  private getElementClass(element: RowElementEnum): TextFieldElement | SliderElement | ButtonElement | TextInputElement {
+  private getElementClass(element: RowElementEnum): TextFieldElement | SliderElement | ButtonElement {
     switch (element) {
       case RowElementEnum.TEXT:
         return new TextFieldElement();
@@ -437,8 +436,6 @@ export class RowService {
         return new SliderElement();
       case RowElementEnum.BUTTON:
         return new ButtonElement();
-      case RowElementEnum.INPUT:
-        return new TextInputElement();
       default:
         throw new CustomException({
           statusCode: HttpStatus.UNPROCESSABLE_ENTITY,

@@ -2,7 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsEmail, IsNotEmpty, IsString, Length, Validate } from 'class-validator';
 import { trimTransformer } from 'src/common/transformers/trim.transformer';
-import { IsPasswordValidator } from 'src/common/validators/isPassword.validator';
 import { IsUserName } from '../../../../common/validators/isUserName.validator';
 
 export class CreateUserDto {
@@ -25,14 +24,15 @@ export class CreateUserDto {
   @ApiProperty({ example: 'ivan@mail.org', description: 'e-mail' })
   @Transform(({ value }) => trimTransformer(value, 'email'))
   @Length(6, 255)
-  @IsEmail({ ignore_max_length: true })
+  @IsEmail()
   @IsNotEmpty()
   @IsString()
   readonly email: string;
 
-  @ApiProperty({ description: 'Password' })
-  @Validate(IsPasswordValidator)
-  @Length(6, 32)
+  @ApiProperty()
+  // TODO: return validation for prod
+  // @Validate(IsPasswordValidator)
+  // @Length(6, 32)
   @IsNotEmpty()
   @IsString()
   readonly password: string;

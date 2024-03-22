@@ -1,10 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { SetExperimentAccessBy } from 'src/common/decorators/setExperimentAccessBy.decorator';
 import { SetExperimentStatusSensitive } from 'src/common/decorators/setExperimentStatusSensitive.decorator';
-import { ExperimentAccessByEnum } from 'src/common/enums/experimentAccessBy.enum';
-import { ValidationUuidParamPipe } from 'src/common/pipes/validationUuidParam.pipe';
 import { OkResponse } from 'src/common/responses/ok.response';
 import { UnauthorizedResponse } from 'src/common/responses/unauthorized.response';
 import { CustomResponseType } from 'src/common/types/customResponseType';
@@ -23,6 +20,7 @@ import { CreateCycleChild201Response } from './responses/cycleChild/createCycleC
 import { ReadByIdCycleChildResponse } from './responses/cycleChild/readByIdCycleChild.response';
 import { ReadSlideById200Response } from './responses/readSlideById.response';
 import { SlideService } from './slide.service';
+import { ValidateObjectIdPipe } from '../../../common/pipes/validateObjectId.pipe';
 
 @Controller('slide')
 @ApiTags('Slide')
@@ -31,8 +29,8 @@ export class SlideController {
 
   @ApiOperation({ summary: 'Create' })
   @Post(':experimentId')
-  @SetExperimentStatusSensitive(true)
-  @UseGuards(ExperimentAccessGuard)
+  // @SetExperimentStatusSensitive(true)
+  // @UseGuards(ExperimentAccessGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiResponse({
@@ -55,14 +53,14 @@ export class SlideController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async create(@Param('experimentId', ValidationUuidParamPipe) experimentId: string): Promise<CustomResponseType> {
+  private async create(@Param('experimentId', ValidateObjectIdPipe) experimentId: string): Promise<CustomResponseType> {
     return await this.slideService.create(experimentId);
   }
 
   @ApiOperation({ summary: 'Read by id' })
   @Get(':slideId')
-  @SetExperimentAccessBy(ExperimentAccessByEnum.SLIDE)
-  @UseGuards(ExperimentAccessGuard)
+  // @SetExperimentAccessBy(ExperimentAccessByEnum.SLIDE)
+  // @UseGuards(ExperimentAccessGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiResponse({
@@ -85,15 +83,15 @@ export class SlideController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async readById(@Param('slideId', ValidationUuidParamPipe) slideId: string): Promise<CustomResponseType> {
+  private async readById(@Param('slideId', ValidateObjectIdPipe) slideId: string): Promise<CustomResponseType> {
     return await this.slideService.readById(slideId);
   }
 
   @ApiOperation({ summary: 'Update' })
   @Patch(':slideId')
-  @SetExperimentAccessBy(ExperimentAccessByEnum.SLIDE)
-  @SetExperimentStatusSensitive(true)
-  @UseGuards(ExperimentAccessGuard)
+  // @SetExperimentAccessBy(ExperimentAccessByEnum.SLIDE)
+  // @SetExperimentStatusSensitive(true)
+  // @UseGuards(ExperimentAccessGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiResponse({
@@ -116,7 +114,7 @@ export class SlideController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async updateSlide(@Body() dto: UpdateSlideDto, @Param('slideId', ValidationUuidParamPipe) slideId: string): Promise<CustomResponseType> {
+  private async updateSlide(@Body() dto: UpdateSlideDto, @Param('slideId', ValidateObjectIdPipe) slideId: string): Promise<CustomResponseType> {
     return await this.slideService.updateSlide(dto, slideId);
   }
 
@@ -148,16 +146,16 @@ export class SlideController {
   })
   private async updateAllSlidesColor(
     @Body() dto: UpdateAllSlidesColor,
-    @Param('experimentId', ValidationUuidParamPipe) experimentId: string,
+    @Param('experimentId', ValidateObjectIdPipe) experimentId: string,
   ): Promise<CustomResponseType> {
     return await this.slideService.updateAllSlidesColor(dto, experimentId);
   }
 
   @ApiOperation({ summary: 'Delete' })
   @Delete(':slideId')
-  @SetExperimentAccessBy(ExperimentAccessByEnum.SLIDE)
-  @SetExperimentStatusSensitive(true)
-  @UseGuards(ExperimentAccessGuard)
+  // @SetExperimentAccessBy(ExperimentAccessByEnum.SLIDE)
+  // @SetExperimentStatusSensitive(true)
+  // @UseGuards(ExperimentAccessGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiResponse({
@@ -180,15 +178,15 @@ export class SlideController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async delete(@Param('slideId', ValidationUuidParamPipe) slideId: string): Promise<CustomResponseType> {
+  private async delete(@Param('slideId', ValidateObjectIdPipe) slideId: string): Promise<CustomResponseType> {
     return await this.slideService.delete(slideId);
   }
 
   /* Cycle */
   @ApiOperation({ summary: 'Create cycle' })
   @Post('cycle/:experimentId')
-  @SetExperimentStatusSensitive(true)
-  @UseGuards(ExperimentAccessGuard)
+  // @SetExperimentStatusSensitive(true)
+  // @UseGuards(ExperimentAccessGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiResponse({
@@ -211,15 +209,15 @@ export class SlideController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async createCycle(@Param('experimentId', ValidationUuidParamPipe) experimentId: string): Promise<CustomResponseType> {
+  private async createCycle(@Param('experimentId', ValidateObjectIdPipe) experimentId: string): Promise<CustomResponseType> {
     return await this.slideService.create(experimentId, true);
   }
 
   @ApiOperation({ summary: 'Create cycle child' })
   @Post('cycle/child/:slideId')
-  @SetExperimentAccessBy(ExperimentAccessByEnum.SLIDE)
-  @SetExperimentStatusSensitive(true)
-  @UseGuards(ExperimentAccessGuard)
+  // @SetExperimentAccessBy(ExperimentAccessByEnum.SLIDE)
+  // @SetExperimentStatusSensitive(true)
+  // @UseGuards(ExperimentAccessGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiResponse({
@@ -242,15 +240,15 @@ export class SlideController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async createCycleChild(@Param('slideId', ValidationUuidParamPipe) slideId: string): Promise<CustomResponseType> {
+  private async createCycleChild(@Param('slideId', ValidateObjectIdPipe) slideId: string): Promise<CustomResponseType> {
     return await this.slideService.createCycleChild(slideId);
   }
 
-  @ApiOperation({ summary: 'Update cycle child' })
-  @Patch('cycle/child/:childId')
-  @SetExperimentAccessBy(ExperimentAccessByEnum.CYCLE_CHILD)
-  @SetExperimentStatusSensitive(true)
-  @UseGuards(ExperimentAccessGuard)
+  @ApiOperation({ summary: 'Update descendant' })
+  @Patch('descendant/:descendantId')
+  // @SetExperimentAccessBy(ExperimentAccessByEnum.CYCLE_CHILD)
+  // @SetExperimentStatusSensitive(true)
+  // @UseGuards(ExperimentAccessGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiResponse({
@@ -273,19 +271,19 @@ export class SlideController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async updateCycleChild(
+  private async updateDescendant(
     @Body() dto: UpdateCycleChildDto,
-    @Param('childId', ValidationUuidParamPipe) childId: string,
+    @Param('descendantId', ValidateObjectIdPipe) descendantId: string,
     @GetCurrentUserIdDecorator() userId: string,
   ): Promise<CustomResponseType> {
-    return await this.slideService.updateCycleChild(dto, childId, userId);
+    return await this.slideService.updateDescendant(dto, descendantId, userId);
   }
 
   @ApiOperation({ summary: 'Delete cycle child' })
   @Delete('cycle/child/:childId')
-  @SetExperimentAccessBy(ExperimentAccessByEnum.CYCLE_CHILD)
-  @SetExperimentStatusSensitive(true)
-  @UseGuards(ExperimentAccessGuard)
+  // @SetExperimentAccessBy(ExperimentAccessByEnum.CYCLE_CHILD)
+  // @SetExperimentStatusSensitive(true)
+  // @UseGuards(ExperimentAccessGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiResponse({
@@ -308,14 +306,14 @@ export class SlideController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async deleteCycleChild(@Param('childId', ValidationUuidParamPipe) childId: string): Promise<CustomResponseType> {
-    return await this.slideService.deleteCycleChild(childId);
+  private async deleteCycleChild(@Param('childId', ValidateObjectIdPipe) childId: string): Promise<CustomResponseType> {
+    return await this.slideService.deleteDescendant(childId);
   }
 
   @ApiOperation({ summary: 'Read cycle child by id' })
   @Get('cycle/child/:childId')
-  @SetExperimentAccessBy(ExperimentAccessByEnum.CYCLE_CHILD)
-  @UseGuards(ExperimentAccessGuard)
+  // @SetExperimentAccessBy(ExperimentAccessByEnum.CYCLE_CHILD)
+  // @UseGuards(ExperimentAccessGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiResponse({
@@ -338,7 +336,7 @@ export class SlideController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async readByIdCycleChild(@Param('childId', ValidationUuidParamPipe) childId: string): Promise<CustomResponseType> {
+  private async readByIdCycleChild(@Param('childId', ValidateObjectIdPipe) childId: string): Promise<CustomResponseType> {
     return await this.slideService.readByIdCycleChild(childId);
   }
 }

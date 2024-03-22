@@ -15,6 +15,6 @@ export async function checkIsUniqueMongoDb(
   if (moreWhereOption) {
     whereOption = { ...whereOption, ...moreWhereOption };
   }
-  const count = await model(modelName, schema).countDocuments(whereOption);
+  const count = await model(modelName, schema).count(whereOption);
   return !count;
 }
