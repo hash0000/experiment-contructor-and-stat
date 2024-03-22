@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch, Post, Put } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { GetCurrentUserIdDecorator } from 'src/common/decorators/getCurrentUserId.decorator';
 import { NoAuth } from 'src/common/decorators/noAuth.decorator';
@@ -37,7 +37,6 @@ import { SendUserCode429Response } from './responses/sendUserCode.response';
 import { SingIn200Response, SingIn202Response } from './responses/signIn.response';
 import { VerifyUser200Response } from './responses/verifyUser.response';
 import { UserService } from './user.service';
-import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('user')
 @ApiTags('User')
@@ -285,67 +284,6 @@ export class UserController {
   })
   private async update(@GetCurrentUserIdDecorator() userId: string, @Body() dto: UpdateUserDto): Promise<CustomResponseType> {
     return await this.userService.update(dto, userId);
-  }
-
-  @ApiOperation({ summary: 'Upload avatar' })
-  @Post('upload-avatar')
-  @ApiBody({
-    required: true,
-    type: 'multipart/form-data',
-    schema: {
-      type: 'object',
-      properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-        },
-      },
-    },
-  })
-  @ApiConsumes('multipart/form-data')
-  @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
-  @ApiResponse({
-    status: HttpStatus.OK,
-    type: OkResponse,
-    description: responseDescriptionConstant.SUCCESS,
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    type: UnauthorizedResponse,
-    description: responseDescriptionConstant.UNAUTHORIZED,
-  })
-  @ApiResponse({
-    status: HttpStatus.INTERNAL_SERVER_ERROR,
-    type: InternalServerErrorResponse,
-    description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
-  })
-  @UseInterceptors(FileInterceptor('file'))
-  private async uploadAvatar(@GetCurrentUserIdDecorator() userId: string, @UploadedFile() file: Express.Multer.File) {
-    return await this.userService.uploadAvatar(userId, file);
-  }
-
-  @ApiOperation({ summary: 'Remove avatar' })
-  @Delete('remove-avatar')
-  @ApiBearerAuth()
-  @HttpCode(HttpStatus.OK)
-  @ApiResponse({
-    status: HttpStatus.OK,
-    type: OkResponse,
-    description: responseDescriptionConstant.SUCCESS,
-  })
-  @ApiResponse({
-    status: HttpStatus.UNAUTHORIZED,
-    type: UnauthorizedResponse,
-    description: responseDescriptionConstant.UNAUTHORIZED,
-  })
-  @ApiResponse({
-    status: HttpStatus.INTERNAL_SERVER_ERROR,
-    type: InternalServerErrorResponse,
-    description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
-  })
-  private async removeAvatar(@GetCurrentUserIdDecorator() userId: string) {
-    return await this.userService.removeAvatar(userId);
   }
 
   /* Language */

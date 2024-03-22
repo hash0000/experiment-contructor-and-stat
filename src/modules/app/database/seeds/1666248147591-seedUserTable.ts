@@ -8,8 +8,8 @@ export class SeedUserTable1666248147591 implements MigrationInterface {
       `INSERT INTO "User" (id, "firstName", "lastName", "middleName", email, password, phone, birthday, laboratory,
                            specialization, sex, "isVerified", "createdAt", "updatedAt")
        VALUES (DEFAULT, 'John', 'Depp', 'Christopher', 'mail@mail.org', '${await this.hashString('root123-')}', null, null, null, null, ${
-         UserSexEnum.NOT_KNOWN
-       }, true, DEFAULT, DEFAULT); 
+        UserSexEnum.NOT_KNOWN
+      }, true, DEFAULT, DEFAULT);
 
       INSERT INTO "User" (id, "firstName", "lastName", email, password, phone, birthday, laboratory,
                           specialization, sex, "isVerified", "createdAt", "updatedAt")

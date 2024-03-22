@@ -9,7 +9,6 @@ import { ExperimentAccessByEnum } from 'src/common/enums/experimentAccessBy.enum
 import { ExperimentAccessStatusEnum } from 'src/common/enums/experimentAccessStatus.enum';
 import { CheckExperimentAccess } from 'src/common/validators/checkExperimentAccess';
 import { isEmptyObject } from 'src/common/validators/isEmptyObject.validator';
-import { Variable, VariableDocument } from 'src/modules/app/database/entities/mongo/variable.schema';
 import { Repository } from 'typeorm';
 import { CustomErrorTypeEnum, ValidationErrorTypeEnum } from '../../../common/enums/errorType.enum';
 import { CustomException } from '../../../common/exceptions/custom.exception';
@@ -22,6 +21,7 @@ import { DeleteVariableDto } from './dto/deleteVariable.dto';
 import { RemoveColumnsDto } from './dto/removeColumns.dto';
 import { RemoveRowsDto } from './dto/removeRows.dto';
 import { UpdateVariableDto } from './dto/updateVariable.dto';
+import { Variable, VariableDocument } from '../database/entities/variable.schema';
 
 @Injectable()
 export class VariableService {
@@ -517,23 +517,23 @@ export class VariableService {
         errorTypeCode: CustomErrorTypeEnum.NO_ACCESS_OR_DATA_NOT_FOUND,
       });
     }
-    const experimentEntity = await this.experimentsRepository.findOne({
-      where: {
-        id: variableModel.experimentId,
-        user: {
-          id: userId,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-    if (!experimentEntity) {
-      throw new CustomException({
-        statusCode: HttpStatus.FORBIDDEN,
-        errorTypeCode: CustomErrorTypeEnum.NO_ACCESS_OR_DATA_NOT_FOUND,
-      });
-    }
+    // const experimentEntity = await this.experimentsRepository.findOne({
+    //   where: {
+    //     id: variableModel.experimentId,
+    //     user: {
+    //       id: userId,
+    //     },
+    //   },
+    //   select: {
+    //     id: true,
+    //   },
+    // });
+    // if (!experimentEntity) {
+    //   throw new CustomException({
+    //     statusCode: HttpStatus.FORBIDDEN,
+    //     errorTypeCode: CustomErrorTypeEnum.NO_ACCESS_OR_DATA_NOT_FOUND,
+    //   });
+    // }
     delete variableModel.experimentId;
     return {
       statusCode: HttpStatus.OK,
@@ -545,7 +545,7 @@ export class VariableService {
     const whereOption: object = { [field]: { $in: data } };
     if (variableId) whereOption['_id'] = variableId;
     if (experimentId) whereOption['experimentId'] = experimentId;
-    const count = await this.variableModel.countDocuments(whereOption);
+    const count = await this.variableModel.count(whereOption);
     return !count;
   }
 }

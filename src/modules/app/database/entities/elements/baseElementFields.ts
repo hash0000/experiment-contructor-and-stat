@@ -1,6 +1,6 @@
 import { v4 as uuidV4 } from 'uuid';
-import { RowElementEnum } from './postgres/row.entity';
 import { StyleFields } from './styleFields';
+import { RowElementEnum } from '../postgres/row.entity';
 
 export enum ConditionListEnum {
   getAnyAnswer,

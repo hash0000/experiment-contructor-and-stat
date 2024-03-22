@@ -41,7 +41,7 @@ class Respondent {
 const RespondentSchema = SchemaFactory.createForClass(Respondent);
 
 @Schema({ toObject: { versionKey: false }, toJSON: { versionKey: false }, timestamps: { createdAt: true } })
-export class StatisticsData {
+class StatisticsData {
   @Prop({ required: true })
   elementId: string;
 
@@ -63,24 +63,9 @@ export class StatisticsData {
 
   @Prop({ default: null })
   value: string;
-
-  @Prop({ default: null })
-  variableText: string;
 }
 
-export type StatisticsDataDocument = HydratedDocument<StatisticsData>;
 const StatisticsDataSchema = SchemaFactory.createForClass(StatisticsData);
-
-@Schema({ toObject: { versionKey: false }, toJSON: { versionKey: false }, timestamps: { createdAt: true } })
-class AnswersData {
-  @Prop({ required: true })
-  variable: string;
-
-  @Prop({ required: true })
-  answers: string[];
-}
-
-const AnswersDataSchema = SchemaFactory.createForClass(AnswersData);
 
 @Schema({ toObject: { versionKey: false }, toJSON: { versionKey: false }, timestamps: { createdAt: true } })
 class Statistics {
@@ -93,11 +78,8 @@ class Statistics {
   @Prop({ default: null })
   inSlideDuration: number;
 
-  @Prop({ required: true })
-  inSlideDurationInCycle: number[];
-
-  @Prop({ required: true, type: [AnswersDataSchema], default: [] })
-  answers: AnswersData[];
+  @Prop({ default: null })
+  answers: string[];
 
   @Prop({ default: null })
   answerTime: number;
@@ -127,6 +109,8 @@ class Statistics {
 
 const StatisticsSchema = SchemaFactory.createForClass(Statistics);
 
+export type StatisticDocument = HydratedDocument<Statistic>;
+
 @Schema({ collection: 'statistic', toObject: { versionKey: false }, toJSON: { versionKey: false }, timestamps: { createdAt: true, updatedAt: false } })
 export class Statistic {
   @Prop({ required: true })
@@ -145,9 +129,6 @@ export class Statistic {
   finished: boolean;
 
   @Prop({ default: null })
-  jsStartTimestamp: number;
-
-  @Prop({ default: null })
   jsFinishTimestamp: number;
 
   @Prop({
@@ -163,7 +144,5 @@ export class Statistic {
   })
   statistics: Statistics[];
 }
-
-export type StatisticDocument = HydratedDocument<Statistic>;
 
 export const StatisticSchema = SchemaFactory.createForClass(Statistic);

@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsDefined, IsEnum, IsNumber, IsOptional, IsString, Validate } from 'class-validator';
 import { IsGeneralValidationValidator } from 'src/common/validators/isGeneralValidation.validator';
 import { IsNotBlank } from 'src/common/validators/isNotBlank.constraint';
@@ -31,21 +31,14 @@ export class UpdateStatisticDataDto {
   actionType: number;
 
   @ApiProperty()
+  @IsBoolean()
+  @IsDefined()
+  isAnswer: boolean;
+
+  @ApiProperty()
   @IsNotBlank()
   @IsString()
   @IsDefined()
   @IsOptional()
   value?: string;
-
-  @ApiProperty()
-  @IsBoolean()
-  @IsDefined()
-  isAnswer: boolean;
-
-  @ApiPropertyOptional()
-  @IsNotBlank()
-  @IsString()
-  @IsDefined()
-  @IsOptional()
-  variableText?: string;
 }

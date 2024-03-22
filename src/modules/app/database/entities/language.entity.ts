@@ -1,10 +1,8 @@
-import { HydratedDocument } from 'mongoose';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-
-type LanguageDocument = HydratedDocument<LanguageM>;
+import { HydratedDocument } from 'mongoose';
 
 @Schema({ collection: 'language', toObject: { versionKey: false }, toJSON: { versionKey: false } })
-class LanguageM {
+export class LanguageEntityM {
   @Prop({ required: true })
   code: string;
 
@@ -18,4 +16,5 @@ class LanguageM {
   region: string;
 }
 
-const LanguageSchema = SchemaFactory.createForClass(LanguageM);
+export type LanguageDocument = HydratedDocument<LanguageEntityM>;
+export const LanguageSchema = SchemaFactory.createForClass(LanguageEntityM);

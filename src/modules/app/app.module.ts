@@ -7,7 +7,6 @@ import { BodyValidationPipe } from '../../common/pipes/bodyValidation.pipe';
 import { DatabaseModule } from './database/database.module';
 import { ExperimentModule } from './experiment/experiment.module';
 import { RowModule } from './row/row.module';
-import { MinioModule } from './s3/minio.module';
 import { SlideModule } from './slide/slide.module';
 import { UserModule } from './user/user.module';
 import { VariableModule } from './variable/variable.module';
@@ -22,7 +21,6 @@ import { VariableModule } from './variable/variable.module';
     SlideModule,
     RowModule,
     VariableModule,
-    MinioModule,
   ],
   providers: [
     {

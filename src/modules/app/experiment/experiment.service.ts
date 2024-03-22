@@ -1,33 +1,28 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { InjectRepository } from '@nestjs/typeorm';
 import * as dayjs from 'dayjs';
 import * as lod from 'lodash';
-import { find } from 'lodash';
-import mongoose, { Model } from 'mongoose';
+import mongoose, { FilterQuery, Model } from 'mongoose';
 import { CustomResponseType } from 'src/common/types/customResponseType';
-import { isEmptyObject } from 'src/common/validators/isEmptyObject.validator';
-import { isUniqueExperimentColumnForUserValidator } from 'src/common/validators/isUniqueExperimentColumnForUser.validator';
-import { Variable, VariableDocument } from 'src/modules/app/database/entities/mongo/variable.schema';
+import { CustomErrorTypeEnum, ValidationErrorTypeEnum } from '../../../common/enums/errorType.enum';
+import { CustomException } from '../../../common/exceptions/custom.exception';
+import checkIsUpdated from '../../../common/functions/checkIsUpdated.function';
+import { MongoTransactionRunner } from '../../../common/functions/mongoTransactionRunner.function';
+import { Statistic, StatisticDocument } from '../../appStatistic/database/entities/statistic.entity';
 import {
   accessConditionsConditionEnum,
   accessConditionsOperatorEnum,
-  ExperimentEntity,
+  AccessConditionsPropertyDocument,
+  ExperimentDocument,
+  ExperimentEntityM,
   ExperimentSortOptionEnum,
   ExperimentStatusEnum,
-  RequestedParametersRespondentDataType,
-} from 'src/modules/app/database/entities/postgres/experiment.entity';
-import { cycleChildEntityBaseSelectOptions, SlideEntity, slideEntityBaseSelectOptions } from 'src/modules/app/database/entities/postgres/slide.entity';
-import { UserSexEnum } from 'src/modules/app/database/entities/postgres/user.entity';
-import { FindOptionsWhere, ILike, In, Repository } from 'typeorm';
-import { FindManyOptions } from 'typeorm/find-options/FindManyOptions';
-import { PostgresDataSource } from '../../../common/configs/typeorm.config';
-import { CustomErrorTypeEnum, ValidationErrorTypeEnum } from '../../../common/enums/errorType.enum';
-import { CustomException } from '../../../common/exceptions/custom.exception';
-import checkIsExists from '../../../common/functions/checkIsExists.function';
-import checkIsUpdated from '../../../common/functions/checkIsUpdated.function';
-import { Statistic, StatisticDocument } from '../../appStatistic/database/entities/statistic.entity';
-import { LanguageEntity } from '../database/entities/postgres/language.entity';
+  RequestedParametersRespondentDataPropertyDocument,
+} from '../database/entities/experiment.entity';
+import { LanguageDocument, LanguageEntityM } from '../database/entities/language.entity';
+import { SlideDocument, SlideEntityM } from '../database/entities/slide.entity';
+import { UserSexEnum } from '../database/entities/user.entity';
+import { Variable, VariableDocument } from '../database/entities/variable.schema';
 import { CreateExperimentDto } from './dto/createExperiment.dto';
 import { ReadExperimentsDto } from './dto/readExperiments.dto';
 import { StartExperimentDto } from './dto/startExperiment.dto';
@@ -38,39 +33,39 @@ import { UpdateExperimentStatusDto } from './dto/updateExperimentStatus.dto';
 @Injectable()
 export class ExperimentService {
   constructor(
+    @InjectModel(ExperimentEntityM.name) private readonly experimentModel: Model<ExperimentDocument>,
+    @InjectModel(SlideEntityM.name) private readonly slideModel: Model<SlideDocument>,
     @InjectModel(Variable.name) private readonly variableModel: Model<VariableDocument>,
+    @InjectModel(LanguageEntityM.name) private readonly languageModel: Model<LanguageDocument>,
     @InjectModel(Statistic.name, 'statistic') private readonly statisticModel: Model<StatisticDocument>,
-    @InjectRepository(ExperimentEntity)
-    private readonly experimentsRepository: Repository<ExperimentEntity>,
-    @InjectRepository(SlideEntity)
-    private readonly slidesRepository: Repository<SlideEntity>,
-    @InjectRepository(LanguageEntity)
-    private readonly languagesRepository: Repository<LanguageEntity>,
-    @InjectConnection('statistic') private readonly connection: mongoose.Connection,
+    @InjectConnection() private readonly mongoConnection: mongoose.Connection,
+    @InjectConnection('statistic') private readonly mongoConnectionStatistic: mongoose.Connection,
   ) {}
 
-  public async createExperiment(dto: CreateExperimentDto, userId: string): Promise<CustomResponseType> {
-    await isUniqueExperimentColumnForUserValidator(dto.title, 'title', userId);
-    const { identifiers } = await this.experimentsRepository.insert({ creators: dto.creators, user: { id: userId }, ...dto });
-    await this.slidesRepository.insert({
-      title: 'Slide 1',
-      position: 1,
-      experiment: { id: identifiers[0].id },
+  public async create(dto: CreateExperimentDto, userId: string): Promise<CustomResponseType> {
+    await this.isUniqueValueForUser(dto.title, 'title', userId);
+
+    let experimentEntity: ExperimentDocument = await MongoTransactionRunner(this.mongoConnection, async (session) => {
+      const experimentEntity: ExperimentDocument = await new this.experimentModel({ ...dto, user: new mongoose.Types.ObjectId(userId) }).save({ session });
+      await new this.slideModel({ title: 'Slide 1', position: 1, experiment: experimentEntity._id }).save({ session });
+      return experimentEntity;
     });
+
+    experimentEntity = await this.getExperimentById(experimentEntity.id, 3);
     return {
       statusCode: HttpStatus.CREATED,
-      data: await this.getExperimentById(identifiers[0].id, 3),
+      data: experimentEntity,
     };
   }
 
-  public async updateExperiment(dto: UpdateExperimentDto, experimentId: string, userId: string): Promise<CustomResponseType> {
-    isEmptyObject(dto);
-    await checkIsExists('Experiment', experimentId);
-    await isUniqueExperimentColumnForUserValidator(dto.title, 'title', userId, experimentId, true);
-    if (!!dto?.requestedParametersRespondentData && dto?.requestedParametersRespondentData.length > 0) {
+  public async update(dto: UpdateExperimentDto, experimentId: string, userId: string): Promise<CustomResponseType> {
+    await this.isUniqueValueForUser(dto.title, 'title', userId, true);
+
+    const requestedParametersRespondentDataCount = dto?.requestedParametersRespondentData?.length;
+    if (requestedParametersRespondentDataCount > 0) {
       for (const item of dto.requestedParametersRespondentData) {
-        const variableModel = await this.variableModel.findOne({ _id: item.variableId, 'columns._id': item.attributeId }).select({ _id: true }).exec();
-        if (!variableModel) {
+        const variableModelCount = await this.variableModel.count({ _id: item.variableId, 'columns._id': item.attributeId }).exec();
+        if (variableModelCount !== requestedParametersRespondentDataCount) {
           throw new CustomException({
             statusCode: HttpStatus.NOT_FOUND,
             errorTypeCode: CustomErrorTypeEnum.VARIABLE_NOT_FOUND,
@@ -78,127 +73,102 @@ export class ExperimentService {
         }
       }
     }
-    try {
-      checkIsUpdated(await this.experimentsRepository.update(experimentId, dto));
-      return await this.readExperimentById(experimentId, true);
-    } catch (e) {
-      console.log(e);
-      throw new CustomException({
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      });
-    }
+
+    checkIsUpdated(await this.experimentModel.updateOne({ _id: experimentId }, dto));
+
+    return {
+      statusCode: HttpStatus.OK,
+      data: { experiment: await this.getExperimentById(experimentId) },
+    };
   }
 
   public async readExperiments(page: number, dtoQuery: ReadExperimentsDto, userId?: string): Promise<CustomResponseType> {
-    const whereOption: FindOptionsWhere<ExperimentEntity> = {};
-    const queryDataTotalCount: FindManyOptions<ExperimentEntity> = {
-      select: {
-        id: true,
-      },
-    };
-    const queryData: FindManyOptions<ExperimentEntity> = {
-      relations: {
-        user: true,
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        requestedBasicRespondentData: {
-          firstName: true,
-          lastName: true,
-          birthday: true,
-          sex: true,
-          email: true,
-          phone: true,
-          nativeLanguages: true,
-          learnedLanguages: true,
+    const whereOption: FilterQuery<ExperimentDocument> = ((): FilterQuery<ExperimentDocument> => {
+      const resultObject: FilterQuery<ExperimentDocument> = {};
+      if (dtoQuery.query) {
+        resultObject.title = { $regex: '.*' + dtoQuery.query + '.*', $options: 'i' };
+      }
+      if (userId && dtoQuery.experimentStatus) {
+        resultObject['user._id'] = userId;
+        resultObject.status = dtoQuery.experimentStatus;
+      } else if (userId) {
+        resultObject['user._id'] = userId;
+      } else {
+        resultObject.status = ExperimentStatusEnum.PUBLISHED;
+      }
+      return resultObject;
+    })();
+
+    const sortOption: object = ((): object => {
+      if (dtoQuery.sortBy === ExperimentSortOptionEnum.ALPHABETICAL) {
+        return { title: dtoQuery.order };
+      } else {
+        return { createdAt: dtoQuery.order };
+      }
+    })();
+
+    // const experimentEntityArray = await this.experimentModel
+    //   .find(
+    //     whereOption,
+    //     {
+    //       _id: true,
+    //       title: true,
+    //       description: true,
+    //       requestedBasicRespondentData: true,
+    //       accessConditions: true,
+    //       requestedParametersRespondentData: true,
+    //       requestedQuestions: true,
+    //       creators: true,
+    //       status: true,
+    //       usersStarted: true,
+    //       usersEnded: true,
+    //       platform: true,
+    //       user: true,
+    //       createdAt: true,
+    //       updatedAt: true,
+    //     },
+    //     { sort: sortOption, limit: 10, skip: (page - 1) * 10 },
+    //   )
+    //   .populate({ path: 'user', select: { id: true, avatarUrl: true, firstName: true, lastName: true, middleName: true } })
+    //   .exec()
+    //   .then((resultArr) => {
+    //     return resultArr.map((el) => {
+    //       if (el.user.firstName === 'Ivan') {
+    //         return el;
+    //       }
+    //     });
+    //   });
+
+    const experimentEntityArray = await this.experimentModel
+      .aggregate([
+        {
+          $lookup: {
+            from: 'user',
+            localField: 'user',
+            foreignField: '_id',
+            as: 'user',
+          },
         },
-        accessConditions: true,
-        requestedParametersRespondentData: true,
-        requestedQuestions: true,
-        creators: true,
-        status: true,
-        usersStarted: true,
-        usersEnded: true,
-        platform: true,
-        createdAt: true,
-        updatedAt: true,
-        user: {
-          id: true,
-          avatarUrl: true,
-          firstName: true,
-          lastName: true,
-          middleName: true,
-        },
-      },
-      take: 10,
-      skip: (page - 1) * 10,
-    };
-
-    if (dtoQuery.sortBy === ExperimentSortOptionEnum.ALPHABETICAL) {
-      queryData.order = { title: dtoQuery.order };
-    } else {
-      queryData.order = { createdAt: dtoQuery.order };
-    }
-
-    if (!!dtoQuery.query) {
-      whereOption.title = ILike(`%${dtoQuery.query}%`);
-    }
-    if (!!userId && !!dtoQuery.experimentStatus) {
-      whereOption.user = {
-        id: userId,
-      };
-      whereOption.status = dtoQuery.experimentStatus;
-    } else if (!!userId) {
-      whereOption.user = {
-        id: userId,
-      };
-    } else {
-      whereOption.status = ExperimentStatusEnum.PUBLISHED;
-    }
-    queryData.where = whereOption;
-    queryDataTotalCount.where = whereOption;
-
-    const experiments = await this.experimentsRepository.find(queryData);
-    const variableIds = experiments.flatMap((experiment) => experiment.requestedParametersRespondentData.map((item) => item.variableId));
-    const variables = await this.variableModel.find({ _id: { $in: variableIds } });
-
-    experiments.forEach((experiment) => {
-      experiment.requestedParametersRespondentData.forEach((data, index) => {
-        const variable = variables.find((v) => v._id.toString() === data.variableId);
-        if (variable) {
-          experiment.requestedParametersRespondentData[index] = {
-            ...data,
-            columns: variable.columns,
-          } as RequestedParametersRespondentDataType;
-        }
-      });
-    });
+        { $unwind: '$user' },
+        // {
+        //   $match: whereOption,
+        // },
+      ])
+      .skip((page - 1) * 10)
+      .limit(10)
+      .exec();
 
     return {
       statusCode: HttpStatus.OK,
       data: {
-        total: await this.experimentsRepository.count(queryDataTotalCount),
-        experiments: experiments.map((el) => {
-          delete el.user.id;
-          return el;
-        }),
+        total: await this.experimentModel.count(whereOption),
+        experiments: experimentEntityArray,
       },
     };
   }
 
-  public async readExperimentById(id: string, defaultFormat: boolean, isShouldSlides: '0' | '1' | boolean = true): Promise<CustomResponseType> {
-    let experimentEntity: ExperimentEntity;
-    if (defaultFormat === true) {
-      experimentEntity = await this.getExperimentById(id);
-    } else {
-      if (isShouldSlides === true || isShouldSlides === '1') {
-        experimentEntity = await this.getExperimentById(id, 3);
-      } else {
-        experimentEntity = await this.getExperimentById(id, 4);
-      }
-    }
+  public async readExperimentById(id: string): Promise<CustomResponseType> {
+    const experimentEntity = await this.getExperimentById(id, 3);
     if (!experimentEntity) {
       throw new CustomException({
         statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
@@ -206,25 +176,16 @@ export class ExperimentService {
       });
     }
 
-    for (const [index, param] of experimentEntity.requestedParametersRespondentData.entries()) {
-      const variableId = param.variableId;
-      const variable = await this.variableModel.findOne({ _id: variableId });
-
-      if (variable) {
-        experimentEntity.requestedParametersRespondentData[index] = { ...param, columns: variable.columns } as RequestedParametersRespondentDataType;
-      }
-    }
-
     return {
       statusCode: HttpStatus.OK,
       data: {
-        experiment: { ...experimentEntity },
+        experiment: experimentEntity,
       },
     };
   }
 
   public async startExperiment(dto: StartExperimentDto, experimentId: string): Promise<CustomResponseType> {
-    const experimentEntity = await this.getExperimentById(experimentId, 1);
+    const experimentEntity: ExperimentDocument = await this.getExperimentById(experimentId, 1);
 
     if (!experimentEntity) {
       throw new CustomException({
@@ -234,7 +195,7 @@ export class ExperimentService {
     }
 
     if (dto?.sessionId) {
-      const mongoTransactionSession = await this.connection.startSession();
+      const mongoTransactionSession = await this.mongoConnectionStatistic.startSession();
 
       try {
         await mongoTransactionSession.startTransaction();
@@ -253,7 +214,7 @@ export class ExperimentService {
           throw CustomErrorTypeEnum.NO_ACCESS_OR_DATA_NOT_FOUND;
         }
 
-        const lastSlide = find(sessionEntity.statistics, {
+        const lastSlide = lod.find(sessionEntity.statistics, {
           passingPosition: Math.max(...sessionEntity.statistics.map(({ passingPosition }) => passingPosition)),
         });
 
@@ -309,34 +270,24 @@ export class ExperimentService {
     this.validateStartExperimentData(dto, experimentEntity);
     this.checkExperimentAccess(experimentEntity.accessConditions, dto);
 
-    const postgresQueryRunner = PostgresDataSource.createQueryRunner();
-    await postgresQueryRunner.connect();
-    await postgresQueryRunner.startTransaction();
-
     try {
       const experimentEntityForStart = await this.getExperimentById(experimentEntity.id, 2);
       let slidePosCounter = 1;
 
-      let nativeLanguages: LanguageEntity[];
-      let learnedLanguages: LanguageEntity[];
+      let nativeLanguages: LanguageDocument[];
+      let learnedLanguages: LanguageDocument[];
       let requestedParametersRespondentData: string[];
       let requestedQuestions: string[];
 
       if (dto?.nativeLanguages) {
-        nativeLanguages = await this.languagesRepository.find({
-          where: { id: In(dto.nativeLanguages) },
-          select: { id: true, title: true, region: true },
-        });
+        nativeLanguages = await this.languageModel.find({ id: { $in: dto.learnedLanguages } }, { id: true, title: true, region: true });
       }
       if (dto?.learnedLanguages) {
-        learnedLanguages = await this.languagesRepository.find({
-          where: { id: In(dto.learnedLanguages) },
-          select: { id: true, title: true, region: true },
-        });
+        learnedLanguages = await this.languageModel.find({ id: { $in: dto.learnedLanguages } }, { id: true, title: true, region: true });
       }
       if (dto?.requestedParametersRespondentData) {
         requestedParametersRespondentData = dto.requestedParametersRespondentData.map(
-          (el) => `${lod.find(experimentEntity.requestedParametersRespondentData, { id: el.id }).title}: ${el.value}`,
+          (el) => `${lod.find(experimentEntity.requestedParametersRespondentData, { id: el._id }).title}: ${el.value}`,
         );
       }
       if (dto?.requestedQuestions) {
@@ -347,7 +298,6 @@ export class ExperimentService {
         experimentId: experimentEntity.id,
         ownerId: experimentEntity.user.id,
         experimentTitle: experimentEntity.title,
-        jsStartTimestamp: dto.jsStartTimestamp,
         respondent: {
           firstName: dto.firstName,
           lastName: dto.lastName,
@@ -362,7 +312,7 @@ export class ExperimentService {
         },
         statistics: experimentEntityForStart.slides.flatMap((el) => {
           const res = [{ slideId: el.id, slideTitle: el.title, isTraining: el.training, constructorPosition: slidePosCounter++, isChild: false }];
-          for (const elem of el?.children) {
+          for (const elem of el?.childs) {
             res.push({ slideId: elem.id, slideTitle: elem.title, isTraining: elem.training, constructorPosition: slidePosCounter++, isChild: true });
           }
           return res;
@@ -371,9 +321,7 @@ export class ExperimentService {
 
       const variableEntityArray = await this.prepareVariablesForStart(experimentEntity, dto);
 
-      await postgresQueryRunner.manager.update(ExperimentEntity, { id: experimentId }, { usersStarted: experimentEntity.usersStarted + 1 });
-
-      await postgresQueryRunner.commitTransaction();
+      await this.experimentModel.updateOne({ _id: experimentId }, { usersStarted: experimentEntity.usersStarted + 1 });
 
       return {
         statusCode: HttpStatus.OK,
@@ -384,14 +332,10 @@ export class ExperimentService {
         },
       };
     } catch (e) {
-      await postgresQueryRunner.rollbackTransaction();
-
       console.error(e);
       throw new CustomException({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       });
-    } finally {
-      await postgresQueryRunner.release();
     }
   }
 
@@ -401,14 +345,14 @@ export class ExperimentService {
       statusCode: HttpStatus.OK,
       data: {
         experiment: await this.getExperimentById(experimentEntity.id, 2),
-        variables: await this.prepareVariablesForStart(experimentEntity, dto),
+        // variables: await this.prepareVariablesForStart(experimentEntity, dto),
       },
     };
   }
 
   public async delete(id: string): Promise<CustomResponseType> {
     await this.variableModel.deleteMany({ experimentId: id }).exec();
-    await this.experimentsRepository.delete({ id });
+    await this.experimentModel.deleteOne({ id }).exec();
 
     return {
       statusCode: HttpStatus.OK,
@@ -416,7 +360,7 @@ export class ExperimentService {
   }
 
   public async updateExperimentStatus(dto: UpdateExperimentStatusDto, experimentId: string): Promise<CustomResponseType> {
-    const experimentEntity = await this.getExperimentById(experimentId, 1);
+    const experimentEntity: ExperimentDocument = await this.getExperimentById(experimentId, 1);
     if (!experimentEntity) {
       throw new CustomException({
         statusCode: HttpStatus.FORBIDDEN,
@@ -428,265 +372,103 @@ export class ExperimentService {
         errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_ALREADY_HAS_THIS_STATUS,
       });
     }
-    checkIsUpdated(await this.experimentsRepository.update({ id: experimentEntity.id }, dto));
-    experimentEntity.status = dto.status;
+
+    checkIsUpdated(await this.experimentModel.updateOne({ _id: experimentEntity.id }, dto).exec());
+
     return {
       statusCode: HttpStatus.OK,
-      data: { experiment: experimentEntity },
     };
   }
 
-  private async getExperimentById(id: string, dataSize = 0): Promise<ExperimentEntity> {
+  private async getExperimentById(id: string, dataSize = 0): Promise<ExperimentDocument> {
     if (dataSize === 0) {
       // default
-      return await this.experimentsRepository.findOne({
-        where: {
-          id,
-        },
-        select: {
+      return await this.experimentModel
+        .findById(id, {
           id: true,
           title: true,
           description: true,
-          usersEnded: true,
-          usersStarted: true,
-          averagePassageTime: true,
-          saveSettings: {
-            timeOnEachSlide: true,
-            totalTime: true,
-            startTime: true,
-            endTime: true,
-          },
-          requestedBasicRespondentData: {
-            firstName: true,
-            lastName: true,
-            birthday: true,
-            sex: true,
-            email: true,
-            phone: true,
-            nativeLanguages: true,
-            learnedLanguages: true,
-          },
+          saveSettings: true,
+          requestedBasicRespondentData: true,
           accessConditions: true,
           requestedParametersRespondentData: true,
           requestedQuestions: true,
-          transitionShortcutSettings: {
-            keyboard: true,
-            mouse: true,
-            keyShortcut: true,
-          },
+          transitionShortcutSettings: true,
           creators: true,
           status: true,
           platform: true,
           createdAt: true,
           updatedAt: true,
-        },
-      });
+        })
+        .exec();
     }
     if (dataSize === 1) {
       // minimal with owner
-      return await this.experimentsRepository.findOne({
-        where: {
-          id,
-        },
-        relations: {
-          user: true,
-        },
-        select: {
-          id: true,
-          title: true,
-          status: true,
-          usersStarted: true,
-          platform: true,
-          saveSettings: {
-            timeOnEachSlide: true,
-            totalTime: true,
-            startTime: true,
-            endTime: true,
+      return await this.experimentModel
+        .findById(id, {
+          select: {
+            _id: true,
+            title: true,
+            status: true,
+            usersStarted: true,
+            platform: true,
+            saveSettings: true,
+            requestedBasicRespondentData: true,
+            accessConditions: true,
+            requestedParametersRespondentData: true,
+            requestedQuestions: true,
           },
-          requestedBasicRespondentData: {
-            firstName: true,
-            lastName: true,
-            birthday: true,
-            sex: true,
-            email: true,
-            phone: true,
-            nativeLanguages: true,
-            learnedLanguages: true,
-          },
-          accessConditions: true,
-          requestedParametersRespondentData: true,
-          requestedQuestions: true,
-          user: {
-            id: true,
-          },
-        },
-      });
+        })
+        .populate('user', { id: true })
+        .exec();
     }
     if (dataSize === 2) {
       // for start
-      return await this.experimentsRepository.findOne({
-        where: {
-          id,
-        },
-        relations: {
-          slides: {
-            children: {
-              rows: true,
-            },
-            rows: true,
-          },
-        },
-        order: {
-          slides: {
-            position: 'ASC',
-            rows: {
-              position: 'ASC',
-            },
-            children: {
-              position: 'ASC',
-              rows: {
-                position: 'ASC',
-              },
-            },
-          },
-        },
-        select: {
+      return await this.experimentModel
+        .findById(id, {
           id: true,
-          transitionShortcutSettings: {
-            keyboard: true,
-            mouse: true,
-            keyShortcut: true,
-          },
-          slides: {
-            ...slideEntityBaseSelectOptions,
-            children: {
-              ...cycleChildEntityBaseSelectOptions,
-              rows: {
-                id: true,
-                height: true,
-                maxColumn: true,
-                position: true,
-                elements: true,
-              },
-            },
-            rows: {
-              id: true,
-              height: true,
-              maxColumn: true,
-              position: true,
-              elements: true,
-            },
-          },
+          transitionShortcutSettings: true,
           usersStarted: true,
-        },
-      });
+        })
+        .populate({
+          path: 'slides',
+          options: { sort: { position: 'ASC' } },
+          populate: { path: 'childs', options: { sort: { position: 'ASC' } } },
+        })
+        .exec();
     }
     if (dataSize === 3) {
       // default with slides (no rows, only for first slide)
-      const preparedExperimentEntity = await this.experimentsRepository.findOne({
-        where: {
-          id,
-        },
-        relations: {
-          slides: {
-            children: true,
-          },
-          user: true,
-        },
-        order: {
-          slides: {
-            position: 'ASC',
-            children: {
-              position: 'ASC',
-            },
-          },
-        },
-        select: {
-          id: true,
+      const preparedExperimentEntity = await this.experimentModel
+        .findById(id, {
+          _id: true,
           title: true,
           description: true,
-          saveSettings: {
-            timeOnEachSlide: true,
-            totalTime: true,
-            startTime: true,
-            endTime: true,
-          },
-          requestedBasicRespondentData: {
-            firstName: true,
-            lastName: true,
-            birthday: true,
-            sex: true,
-            email: true,
-            phone: true,
-            nativeLanguages: true,
-            learnedLanguages: true,
-          },
-          transitionShortcutSettings: {
-            keyboard: true,
-            mouse: true,
-            keyShortcut: true,
-          },
+          saveSettings: true,
+          requestedBasicRespondentData: true,
+          transitionShortcutSettings: true,
           accessConditions: true,
           requestedParametersRespondentData: true,
           requestedQuestions: true,
           creators: true,
           status: true,
-          user: {
-            firstName: true,
-            lastName: true,
-            middleName: true,
-            avatarUrl: true,
-          },
           usersStarted: true,
           usersEnded: true,
-          averagePassageTime: true,
           platform: true,
           createdAt: true,
           updatedAt: true,
-          slides: {
-            ...slideEntityBaseSelectOptions,
-            children: {
-              ...cycleChildEntityBaseSelectOptions,
-            },
-          },
-        },
-      });
-      const firstSlide = await this.slidesRepository.findOne({
-        where: { position: 1, experiment: { id: id } },
-        relations: {
-          children: {
-            rows: true,
-          },
-          rows: true,
-        },
-        order: {
-          position: 'ASC',
-          children: {
-            position: 'ASC',
-          },
-        },
-        select: {
-          ...slideEntityBaseSelectOptions,
-          rows: {
-            id: true,
-            height: true,
-            maxColumn: true,
-            position: true,
-            elements: true,
-          },
-          children: {
-            ...cycleChildEntityBaseSelectOptions,
-            rows: {
-              id: true,
-              height: true,
-              maxColumn: true,
-              position: true,
-              elements: true,
-            },
-          },
-        },
-      });
-      if (!firstSlide) {
+        })
+        .populate({ path: 'user', select: { firstName: true, lastName: true, middleName: true, avatarUrl: true } })
+        .populate({
+          path: 'slides',
+          select: { rows: false },
+          options: { sort: { position: 'ASC' } },
+          populate: { path: 'childs', select: { rows: false }, options: { sort: { position: 'ASC' } } },
+        })
+        .exec();
+
+      const firstSlideEntity = await this.slideModel.findOne({ position: 1, experiment: id }).populate({ path: 'childs' }).exec();
+      if (!firstSlideEntity) {
         throw new CustomException({
           statusCode: HttpStatus.BAD_REQUEST,
           errorTypeCode: CustomErrorTypeEnum.SLIDE_ID_NOT_FOUND,
@@ -696,66 +478,12 @@ export class ExperimentService {
         preparedExperimentEntity.slides = [];
       }
       preparedExperimentEntity.slides.shift();
-      preparedExperimentEntity.slides.unshift(firstSlide);
+      preparedExperimentEntity.slides.unshift(firstSlideEntity);
       return preparedExperimentEntity;
-    }
-    if (dataSize === 4) {
-      // like 3 but without slides
-      return await this.experimentsRepository.findOne({
-        where: {
-          id,
-        },
-        relations: {
-          user: true,
-        },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          saveSettings: {
-            timeOnEachSlide: true,
-            totalTime: true,
-            startTime: true,
-            endTime: true,
-          },
-          requestedBasicRespondentData: {
-            firstName: true,
-            lastName: true,
-            birthday: true,
-            sex: true,
-            email: true,
-            phone: true,
-            nativeLanguages: true,
-            learnedLanguages: true,
-          },
-          transitionShortcutSettings: {
-            keyboard: true,
-            mouse: true,
-            keyShortcut: true,
-          },
-          accessConditions: true,
-          requestedParametersRespondentData: true,
-          requestedQuestions: true,
-          creators: true,
-          status: true,
-          user: {
-            firstName: true,
-            lastName: true,
-            middleName: true,
-            avatarUrl: true,
-          },
-          usersStarted: true,
-          usersEnded: true,
-          averagePassageTime: true,
-          platform: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
     }
   }
 
-  private validateStartExperimentData(dto: StartExperimentDto, experimentEntity: ExperimentEntity, isPreview?: boolean): void {
+  private validateStartExperimentData(dto: StartExperimentDto, experimentEntity: ExperimentDocument, isPreview?: boolean): void {
     if (experimentEntity.platform !== dto.platform) {
       throw new CustomException({
         statusCode: HttpStatus.FORBIDDEN,
@@ -811,13 +539,13 @@ export class ExperimentService {
     }
 
     if (experimentEntity.requestedBasicRespondentData.sex) {
-      if (dto.sex === null) {
+      if (!dto.sex) {
         throw new CustomException({
           statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
           validationError: [{ property: 'sex', validationErrorTypeCode: ValidationErrorTypeEnum.IS_DEFINED }],
         });
       }
-    } else if (dto.sex !== null) {
+    } else if (dto.sex) {
       throw new CustomException({
         statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
         validationError: [{ property: 'sex', validationErrorTypeCode: ValidationErrorTypeEnum.WHITE_LIST_VALIDATION }],
@@ -853,7 +581,7 @@ export class ExperimentService {
     }
 
     if (experimentEntity.requestedBasicRespondentData.nativeLanguages) {
-      if (!dto.nativeLanguages || !dto.nativeLanguages.length) {
+      if (!dto.nativeLanguages) {
         throw new CustomException({
           statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
           validationError: [{ property: 'nativeLanguages', validationErrorTypeCode: ValidationErrorTypeEnum.IS_DEFINED }],
@@ -867,7 +595,7 @@ export class ExperimentService {
     }
 
     if (experimentEntity.requestedBasicRespondentData.learnedLanguages) {
-      if (!dto.learnedLanguages || !dto.learnedLanguages.length) {
+      if (!dto.learnedLanguages) {
         throw new CustomException({
           statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
           validationError: [{ property: 'learnedLanguages', validationErrorTypeCode: ValidationErrorTypeEnum.IS_DEFINED }],
@@ -901,17 +629,6 @@ export class ExperimentService {
           validationError: [{ property: 'requestedQuestions', validationErrorTypeCode: ValidationErrorTypeEnum.IS_DEFINED }],
         });
       }
-      const requiredQuestionArray = experimentEntity.requestedQuestions.map((el) => {
-        if (el.isRequired) {
-          return el;
-        }
-      });
-      if (lod.differenceBy(requiredQuestionArray, dto.requestedQuestions, 'id').length) {
-        throw new CustomException({
-          statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-          errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_INCORRECT_USER_DATA,
-        });
-      }
     } else if (dto.requestedQuestions) {
       throw new CustomException({
         statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
@@ -936,7 +653,7 @@ export class ExperimentService {
     }
   }
 
-  private async prepareVariablesForStart(experimentEntity: ExperimentEntity, dto: StartExperimentDto): Promise<object[]> {
+  private async prepareVariablesForStart(experimentEntity: ExperimentDocument, dto: StartExperimentDto): Promise<object[]> {
     const preparedVariablesArray: object[] = [];
     const variablesNotIncludedInSettings = await this.variableModel
       .find(
@@ -964,12 +681,15 @@ export class ExperimentService {
           statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
         });
       }
+      // Is it works?
       for (const el of dto.requestedParametersRespondentData) {
-        const settingsData = lod.find(experimentEntity.requestedParametersRespondentData, { id: el.id });
+        const settingsData: RequestedParametersRespondentDataPropertyDocument = lod.find(experimentEntity.requestedParametersRespondentData, {
+          _id: el._id,
+        }) as RequestedParametersRespondentDataPropertyDocument;
         const variableEntity = await this.variableModel
           .findOne(
             {
-              _id: settingsData.variableId,
+              _id: settingsData.variable,
             },
             { _id: true, 'value.content': true, columns: { $elemMatch: { _id: settingsData.attributeId } } },
           )
@@ -984,9 +704,11 @@ export class ExperimentService {
             statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
           });
         }
-        const valueIndexes: string[] = this.getAllIndexes(variableEntity.columns[0].content, el.value);
+
+        const indexes: number[] = [];
+        for (let i = 0; i < variableEntity.columns[0].content.length; i++) if (variableEntity.columns[0].content[i] === el.value) indexes.push(i);
         const temp = [];
-        for (const element of valueIndexes) {
+        for (const element of indexes) {
           temp.push(variableEntity.value.content[`${element}`]);
         }
         variableEntity.value.content = temp;
@@ -997,17 +719,17 @@ export class ExperimentService {
     return preparedVariablesArray.concat(variablesNotIncludedInSettings);
   }
 
-  private checkExperimentAccess(experimentAccessConditions: ExperimentEntity['accessConditions'], user: StartExperimentDto): void {
+  private checkExperimentAccess(experimentAccessConditions: AccessConditionsPropertyDocument[], dto: StartExperimentDto): void {
     for (const el of experimentAccessConditions)
       switch (el.condition) {
         case accessConditionsConditionEnum.AGE:
-          if (user?.birthday === null) {
+          if (dto?.birthday === null) {
             throw new CustomException({
               statusCode: HttpStatus.FORBIDDEN,
               errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_INCORRECT_USER_DATA,
             });
           }
-          const age = dayjs().diff(user.birthday, 'y');
+          const age = dayjs().diff(dto.birthday, 'y');
           const requiredAge = Number(el.value);
           switch (el.operator) {
             case accessConditionsOperatorEnum.EQUALS:
@@ -1060,7 +782,7 @@ export class ExperimentService {
           }
           break;
         case accessConditionsConditionEnum.SEX:
-          if (user?.sex === null) {
+          if (dto?.sex === null) {
             throw new CustomException({
               statusCode: HttpStatus.FORBIDDEN,
               errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_INCORRECT_USER_DATA,
@@ -1069,7 +791,7 @@ export class ExperimentService {
           const requiredSex: UserSexEnum = Number(el.value);
           switch (el.operator) {
             case accessConditionsOperatorEnum.EQUALS:
-              if (user.sex !== requiredSex) {
+              if (dto.sex !== requiredSex) {
                 throw new CustomException({
                   statusCode: HttpStatus.FORBIDDEN,
                   errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_SEX_EQUALS,
@@ -1077,7 +799,7 @@ export class ExperimentService {
               }
               break;
             case accessConditionsOperatorEnum.NOT_EQUALS:
-              if (user.sex === requiredSex) {
+              if (dto.sex === requiredSex) {
                 throw new CustomException({
                   statusCode: HttpStatus.FORBIDDEN,
                   errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_SEX_NOT_EQUALS,
@@ -1086,7 +808,7 @@ export class ExperimentService {
           }
           break;
         case accessConditionsConditionEnum.NATIVE_LANGUAGE:
-          if (user?.nativeLanguages === null) {
+          if (dto?.nativeLanguages === null) {
             throw new CustomException({
               statusCode: HttpStatus.FORBIDDEN,
               errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_INCORRECT_USER_DATA,
@@ -1094,24 +816,24 @@ export class ExperimentService {
           }
           switch (el.operator) {
             case accessConditionsOperatorEnum.EQUALS:
-              if (user.nativeLanguages.indexOf(el.value) == -1) {
-                throw new CustomException({
-                  statusCode: HttpStatus.FORBIDDEN,
-                  errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_NATIVE_LANGUAGES_NOT_EQUALS,
-                });
-              }
-              break;
-            case accessConditionsOperatorEnum.NOT_EQUALS:
-              if (user.nativeLanguages.indexOf(el.value) !== -1) {
+              if (dto.nativeLanguages.indexOf(el.value) >= 0) {
                 throw new CustomException({
                   statusCode: HttpStatus.FORBIDDEN,
                   errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_NATIVE_LANGUAGES_EQUALS,
                 });
               }
+              break;
+            case accessConditionsOperatorEnum.NOT_EQUALS:
+              if (dto.nativeLanguages.indexOf(el.value) !== -1) {
+                throw new CustomException({
+                  statusCode: HttpStatus.FORBIDDEN,
+                  errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_NATIVE_LANGUAGES_NOT_EQUALS,
+                });
+              }
           }
           break;
         case accessConditionsConditionEnum.LEARNED_LANGUAGE:
-          if (user?.learnedLanguages === null) {
+          if (dto?.learnedLanguages === null) {
             throw new CustomException({
               statusCode: HttpStatus.FORBIDDEN,
               errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_INCORRECT_USER_DATA,
@@ -1119,27 +841,40 @@ export class ExperimentService {
           }
           switch (el.operator) {
             case accessConditionsOperatorEnum.EQUALS:
-              if (user.learnedLanguages.indexOf(el.value) == -1) {
+              if (dto.learnedLanguages.indexOf(el.value) >= 0) {
                 throw new CustomException({
                   statusCode: HttpStatus.FORBIDDEN,
-                  errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_LEARNED_LANGUAGES_NOT_EQUALS,
+                  errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_LEARNED_LANGUAGES_EQUALS,
                 });
               }
               break;
             case accessConditionsOperatorEnum.NOT_EQUALS:
-              if (user.learnedLanguages.indexOf(el.value) !== -1) {
+              if (dto.learnedLanguages.indexOf(el.value) !== -1) {
                 throw new CustomException({
                   statusCode: HttpStatus.FORBIDDEN,
-                  errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_LEARNED_LANGUAGES_EQUALS,
+                  errorTypeCode: CustomErrorTypeEnum.EXPERIMENT_START_LEARNED_LANGUAGES_NOT_EQUALS,
                 });
               }
           }
       }
   }
 
-  private getAllIndexes(arr, val) {
-    const indexes = [];
-    for (let i = 0; i < arr.length; i++) if (arr[i] === val) indexes.push(i);
-    return indexes;
+  private async isUniqueValueForUser(value: string, property: string, userId: string, isUpdate?: boolean): Promise<void> {
+    const found: number = await this.experimentModel.count({ [property]: value, user: userId }).exec();
+    if (isUpdate) {
+      if (found > 1) {
+        throw new CustomException({
+          statusCode: HttpStatus.CONFLICT,
+          validationError: [{ property: property, validationErrorTypeCode: ValidationErrorTypeEnum.IS_UNIQUE }],
+        });
+      }
+    } else {
+      if (found >= 1) {
+        throw new CustomException({
+          statusCode: HttpStatus.CONFLICT,
+          validationError: [{ property: property, validationErrorTypeCode: ValidationErrorTypeEnum.IS_UNIQUE }],
+        });
+      }
+    }
   }
 }

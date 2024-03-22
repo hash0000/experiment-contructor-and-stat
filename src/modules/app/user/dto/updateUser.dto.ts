@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsDateString, IsDefined, IsEnum, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Length, Validate, ValidateIf } from 'class-validator';
+import { IsDateString, IsDefined, IsEnum, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUrl, Length, Validate, ValidateIf } from 'class-validator';
 import { trimTransformer } from 'src/common/transformers/trim.transformer';
 import { IsGeneralValidationValidator } from '../../../../common/validators/isGeneralValidation.validator';
 import { IsUserName } from '../../../../common/validators/isUserName.validator';
@@ -87,4 +87,13 @@ export class UpdateUserDto {
   @IsDefined()
   @IsOptional()
   readonly sex?: UserSexEnum;
+
+  @ApiPropertyOptional({
+    description: 'Profile picture',
+  })
+  @IsUrl()
+  @IsNotEmpty()
+  @IsString()
+  @IsOptional()
+  readonly avatarUrl?: string;
 }

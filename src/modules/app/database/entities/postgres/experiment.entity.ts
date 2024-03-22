@@ -2,13 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Column, CreateDateColumn, Entity, Index, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { SlideEntity } from './slide.entity';
 import { UserEntity } from './user.entity';
-
-export enum ExperimentSortOptionEnum {
-  ALPHABETICAL = 'alphabetical',
-  DATE_PUBLISHED = 'datePublished',
-  POPULARITY = 'popularity',
-}
-
 export enum ExperimentOrderOptionEnum {
   DESC = 'DESC',
   ASC = 'ASC',
@@ -87,9 +80,9 @@ type AccessConditionsType = {
 };
 
 export class TransitionShortcutSettings {
-  keyboard: boolean = true;
+  keyboard: boolean = false;
   mouse: boolean = false;
-  keyShortcut: string = 'Space';
+  keyShortcut: string = 'space';
 }
 
 /* end accessConditions */
@@ -157,7 +150,7 @@ export class ExperimentEntity {
     type: 'jsonb',
     array: false,
     nullable: false,
-    default: () => "'[]'",
+    default: () => '\'[]\'',
   })
   requestedParametersRespondentData: RequestedParametersRespondentDataType[];
 
@@ -209,14 +202,6 @@ export class ExperimentEntity {
     default: 0,
   })
   usersEnded: number;
-
-  //TODO: create fields for averagePassageTime
-
-  @Column({ nullable: false, default: 0 })
-  averagePassageTime: number;
-
-  @Column({ nullable: false, default: 0 })
-  allTimePassing: number;
 
   @Column({
     nullable: false,

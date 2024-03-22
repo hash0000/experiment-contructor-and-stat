@@ -112,9 +112,7 @@ export async function CheckExperimentAccess(
               },
             },
             select: {
-              id: true,
               slide: {
-                id: true,
                 experiment: {
                   id: true,
                   status: true,

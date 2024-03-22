@@ -11,7 +11,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
   Length,
   Validate,
   ValidateIf,
@@ -21,7 +20,6 @@ import mongoose from 'mongoose';
 import { trimTransformer } from 'src/common/transformers/trim.transformer';
 import { IsValidExperimentConditionsOperator } from 'src/common/validators/experiment/isValidExperimentConditionsOperator.validator';
 import { IsValidExperimentConditionsValue } from 'src/common/validators/experiment/isValidExperimentConditionsValue.validator';
-import { v4 as uuidV4 } from 'uuid';
 import { ValidationErrorTypeEnum } from '../../../../common/enums/errorType.enum';
 import { CustomException } from '../../../../common/exceptions/custom.exception';
 import { IsGeneralValidationValidator } from '../../../../common/validators/isGeneralValidation.validator';
@@ -29,13 +27,6 @@ import { IsNotBlank } from '../../../../common/validators/isNotBlank.constraint'
 import { accessConditionsConditionEnum, accessConditionsOperatorEnum, answerTypeEnum } from '../../database/entities/postgres/experiment.entity';
 
 export class UpdateExperimentAccessConditionsDto {
-  @IsMongoId()
-  @IsNotEmpty()
-  @IsString()
-  @IsDefined()
-  @IsOptional()
-  readonly id = String(new mongoose.Types.ObjectId());
-
   @ApiProperty()
   @IsValidExperimentConditionsValue()
   @IsNotBlank()
@@ -74,11 +65,6 @@ class transitionOnButtonPressDto {
 }
 
 export class UpdateExperimentRequestedQuestionsDto {
-  @IsUUID(4)
-  @IsString()
-  @IsOptional()
-  readonly id: string = uuidV4();
-
   @ApiProperty()
   @Transform(({ value }) => trimTransformer(value, 'question'))
   @IsNotEmpty()

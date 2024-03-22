@@ -1,4 +1,4 @@
-import { IsDefined, IsHexColor, IsNotEmpty, IsNumber, IsString, Length, Max, Min, ValidateIf } from 'class-validator';
+import { IsDefined, IsHexColor, IsNotEmpty, IsNumber, IsString, Max, Min, ValidateIf } from 'class-validator';
 
 export class StyleFieldsDto {
   @IsHexColor()
@@ -19,7 +19,7 @@ export class StyleFieldsDto {
   readonly thirdColor: string;
 
   @Min(1)
-  @Max(50)
+  @Max(32)
   @IsNumber({
     allowNaN: false,
     allowInfinity: false,

@@ -1,7 +1,7 @@
 import { v4 as uuidV4 } from 'uuid';
 import { BaseElementFields } from './baseElementFields';
-import { RowElementEnum } from './postgres/row.entity';
 import { getDefaultStyle, StyleFields } from './styleFields';
+import { RowElementEnum } from '../postgres/row.entity';
 
 class SliderAnswer {
   id: string = uuidV4();

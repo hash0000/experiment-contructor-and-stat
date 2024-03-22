@@ -28,11 +28,14 @@ import { UpdateUserLanguageDto } from './dto/updateUserLanguage.dto';
 import { UpdateUserPasswordDto } from './dto/updateUserPassword.dto';
 import { UserCodeDto } from './dto/userCode.dto';
 import { parsePhoneNumber } from 'libphonenumber-js';
-import { MinioService } from '../s3/minio.service';
+import { UserDocument, UserEntityM } from '../database/entities/user.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class UserService {
   constructor(
+    @InjectModel(UserEntityM.name) private readonly userModel: Model<UserDocument>,
     @InjectRepository(UserEntity)
     private readonly usersRepository: Repository<UserEntity>,
     @InjectRepository(UserCodeEntity)
@@ -42,22 +45,17 @@ export class UserService {
     private readonly mailService: MailService,
     private readonly dataSource: DataSource,
     private readonly jwtService: JwtService,
-    private readonly minioService: MinioService,
   ) {}
 
   public async signIn(dto: SignInDto): Promise<CustomResponseType> {
-    const userEntity = await this.usersRepository.findOne({
-      where: { email: dto.email },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        isVerified: true,
-        password: true,
-      },
-    });
-
+    const userEntity = await this.userModel
+      .findOne(
+        {
+          email: dto.email,
+        },
+        { id: true, firstName: true, lastName: true, email: true, isVerified: true, password: true },
+      )
+      .exec();
     if (!userEntity) {
       throw new CustomException({
         statusCode: HttpStatus.FORBIDDEN,
@@ -81,43 +79,26 @@ export class UserService {
       });
     }
 
-    const userLanguagesEntity = await this.userLanguagesRepository.find({
-      where: { user: { id: userEntity.id } },
-      relations: {
-        language: true,
-      },
-      select: {
-        id: true,
-        proficiency: true,
-        language: {
-          code: true,
-          title: true,
-          native: true,
-        },
-      },
-    });
-
-    const user = await getUser(userEntity.id);
-
     return {
       statusCode: HttpStatus.OK,
       data: {
-        tokens: await this.generateTokens(userEntity),
-        user: { ...user, userLanguages: userLanguagesEntity },
+        tokens: await this.generateTokens({ id: userEntity.id, email: userEntity.email, firstName: userEntity.firstName, lastName: userEntity.lastName }),
+        user: userEntity,
       },
     };
   }
 
   public async createUser(dto: CreateUserDto): Promise<CustomResponseType> {
-    const user = await this.getUserByEmail(dto.email);
-    if (!!user) {
+    const userEntity = await this.userModel.findOne({ email: dto.email }, { _id: true });
+    if (userEntity) {
       throw new CustomException({
         statusCode: HttpStatus.CONFLICT,
         errorTypeCode: CustomErrorTypeEnum.ENTRY_ALREADY_EXISTS,
       });
     }
-    const newUser = await this.usersRepository.save(Object.assign(new UserEntity(), dto));
-    await this.createUserCode(newUser, CodeTypeEnum.VERIFICATION);
+
+    await this.userModel.create(dto);
+    // await this.createUserCode(newUserEntity, CodeTypeEnum.VERIFICATION);
 
     return {
       statusCode: HttpStatus.CREATED,
@@ -325,70 +306,6 @@ export class UserService {
     } finally {
       await postgresQueryRunner.release();
     }
-  }
-
-  public async uploadAvatar(userId: string, file: Express.Multer.File) {
-    const userEntity = await getUser(userId);
-
-    if (!userEntity) {
-      throw new CustomException({
-        statusCode: HttpStatus.BAD_REQUEST,
-        errorTypeCode: CustomErrorTypeEnum.INCORRECT_CREDENTIALS,
-      });
-    }
-
-    const checkFileType = this.minioService.getFileType(file.originalname);
-    if (!checkFileType) {
-      throw new CustomException({
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      });
-    }
-
-    const uniqueObjectName = await this.minioService.generateObjectName(file.originalname);
-
-    try {
-      const uploadedFile = await this.minioService.uploadFile(file, uniqueObjectName);
-      if (userEntity.avatarUrl) {
-        await this.minioService.removeObjectFromMinio(userEntity.avatarUrl.split('/').pop());
-      }
-      await this.usersRepository.update(userId, { avatarUrl: uploadedFile });
-    } catch (e) {
-      console.log(e);
-      throw new CustomException({
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      });
-    }
-
-    return {
-      statusCode: HttpStatus.OK,
-    };
-  }
-
-  public async removeAvatar(userId: string) {
-    const userEntity = await getUser(userId);
-
-    if (!userEntity) {
-      throw new CustomException({
-        statusCode: HttpStatus.BAD_REQUEST,
-        errorTypeCode: CustomErrorTypeEnum.INCORRECT_CREDENTIALS,
-      });
-    }
-
-    //TODO: throw exception if avatarURL==null
-
-    try {
-      const objectName = userEntity.avatarUrl.split('/').pop();
-      await this.minioService.removeObjectFromMinio(objectName);
-      await this.usersRepository.update(userId, { avatarUrl: null });
-    } catch (e) {
-      console.log(e);
-      throw new CustomException({
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      });
-    }
-    return {
-      statusCode: HttpStatus.OK,
-    };
   }
 
   public async createUserLanguage(dto: CreateUserLanguageDto, userId: string): Promise<CustomResponseType> {
@@ -611,10 +528,10 @@ export class UserService {
     });
     if (!!codeEntity) {
       const timeDifference = Math.abs(codeEntity['createdAt'].getTime() - new Date().getTime());
-      if (timeDifference <= 30000) {
+      if (timeDifference <= 300000) {
         throw new CustomException({
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          data: { timeLeft: Math.abs(timeDifference - 30000) },
+          data: { timeLeft: Math.abs(timeDifference - 300000) },
           errorTypeCode: CustomErrorTypeEnum.TOO_MANY_REQUESTS,
         });
       } else {

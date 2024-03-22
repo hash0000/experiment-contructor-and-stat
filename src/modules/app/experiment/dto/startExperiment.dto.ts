@@ -9,7 +9,6 @@ import {
   IsEnum,
   IsMongoId,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsPhoneNumber,
   IsString,
@@ -20,7 +19,6 @@ import {
 import { ExperimentPlatformEnum } from 'src/modules/app/database/entities/postgres/experiment.entity';
 import { IsSameOrAfterNow } from '../../../../common/validators/user/IsSameOrAfterNow.constraint';
 import { UserSexEnum } from '../../database/entities/postgres/user.entity';
-import { IsDateFromNumber } from '../../../../common/validators/isDateFromNumber.validator';
 
 class RequestedParametersRespondentDataDto {
   @ApiProperty()
@@ -28,7 +26,7 @@ class RequestedParametersRespondentDataDto {
   @IsString()
   @IsNotEmpty()
   @IsDefined()
-  readonly id: string;
+  readonly _id: string;
 
   @ApiProperty()
   @IsString()
@@ -102,12 +100,6 @@ export class StartExperimentDto {
   @IsDefined()
   @ValidateIf((_, value) => value !== null)
   readonly phone: string;
-
-  @ApiProperty()
-  @IsDateFromNumber()
-  @IsNumber()
-  @IsOptional()
-  readonly jsStartTimestamp?: number;
 
   @ApiProperty()
   @IsUUID(4, { each: true })

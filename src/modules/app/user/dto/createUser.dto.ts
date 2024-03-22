@@ -25,14 +25,14 @@ export class CreateUserDto {
   @ApiProperty({ example: 'ivan@mail.org', description: 'e-mail' })
   @Transform(({ value }) => trimTransformer(value, 'email'))
   @Length(6, 255)
-  @IsEmail({ ignore_max_length: true })
+  @IsEmail()
   @IsNotEmpty()
   @IsString()
   readonly email: string;
 
-  @ApiProperty({ description: 'Password' })
-  @Validate(IsPasswordValidator)
-  @Length(6, 32)
+  @ApiProperty()
+  // @Validate(IsPasswordValidator)
+  // @Length(6, 32)
   @IsNotEmpty()
   @IsString()
   readonly password: string;

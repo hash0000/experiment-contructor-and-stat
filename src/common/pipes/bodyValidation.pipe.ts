@@ -7,7 +7,7 @@ import getErrorsArrayFunction from '../functions/getErrorsArray.function';
 @Injectable()
 export class BodyValidationPipe implements PipeTransform {
   async transform(value: any, { metatype, type }: ArgumentMetadata): Promise<Array<string>> {
-    if (type !== 'body' && type !== 'query') {
+    if (type !== 'body') {
       return value;
     }
     const object = plainToInstance(metatype, value);

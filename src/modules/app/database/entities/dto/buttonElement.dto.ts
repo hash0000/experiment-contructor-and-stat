@@ -1,10 +1,10 @@
 import { Type } from 'class-transformer';
 import { IsDefined, IsEnum, IsIn, IsNotEmpty, IsNotEmptyObject, IsNumber, IsObject, IsString, Length, Validate, ValidateNested } from 'class-validator';
 import { IsGeneralValidationValidator } from '../../../../../common/validators/isGeneralValidation.validator';
-import { ButtonActionEnum } from '../buttonElement';
 import { RowElementEnum } from '../postgres/row.entity';
 import { BaseElementFieldsDto } from './baseElementFields.dto';
 import { StyleFieldsDto } from './styleFields.dto';
+import { ButtonActionEnum } from '../elements/buttonElement';
 
 export class ButtonElementDto extends BaseElementFieldsDto {
   @IsIn([RowElementEnum.BUTTON])

@@ -1,28 +1,25 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength, Validate } from 'class-validator';
 import { IsGeneralValidationValidator } from '../../../../common/validators/isGeneralValidation.validator';
-import { ExperimentOrderOptionEnum, ExperimentSortOptionEnum, ExperimentStatusEnum } from '../../database/entities/postgres/experiment.entity';
+import { ExperimentSortOptionEnum, ExperimentStatusEnum } from '../../database/entities/experiment.entity';
+import { OrderByEnum } from '../../../../common/enums/orderBy.enum';
 
 export class ReadExperimentsDto {
-  @ApiProperty({
-    description: 'Sort by option',
-  })
+  @ApiProperty()
   @IsEnum(ExperimentSortOptionEnum)
   @IsNotEmpty()
   @IsString()
   readonly sortBy: ExperimentSortOptionEnum;
 
   @ApiProperty({
-    description: 'Order by option',
+    enum: OrderByEnum,
   })
-  @IsEnum(ExperimentOrderOptionEnum)
+  @IsEnum(OrderByEnum)
   @IsNotEmpty()
   @IsString()
-  readonly order: ExperimentOrderOptionEnum;
+  readonly order: string;
 
-  @ApiPropertyOptional({
-    description: 'Search query',
-  })
+  @ApiPropertyOptional()
   @Validate(IsGeneralValidationValidator)
   @MaxLength(255)
   @IsNotEmpty()
@@ -30,9 +27,7 @@ export class ReadExperimentsDto {
   @IsOptional()
   readonly query?: string;
 
-  @ApiPropertyOptional({
-    description: 'Experiment status',
-  })
+  @ApiPropertyOptional()
   @IsEnum(ExperimentStatusEnum)
   @IsNotEmpty()
   @IsString()

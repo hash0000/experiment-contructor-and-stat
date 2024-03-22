@@ -1,7 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { SetExperimentStatusSensitive } from 'src/common/decorators/setExperimentStatusSensitive.decorator';
 import { MongoIdValidationPipe } from 'src/common/pipes/mongoIdValidation.pipe';
 import { OkResponse } from 'src/common/responses/ok.response';
 import { UnauthorizedResponse } from 'src/common/responses/unauthorized.response';
@@ -34,8 +33,8 @@ export class VariableController {
 
   @ApiOperation({ summary: 'Create' })
   @Post('/:experimentId')
-  @SetExperimentStatusSensitive(true)
-  @UseGuards(ExperimentAccessGuard)
+  // @SetExperimentStatusSensitive(true)
+  // @UseGuards(ExperimentAccessGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiResponse({
@@ -63,7 +62,7 @@ export class VariableController {
     type: InternalServerErrorResponse,
     description: responseDescriptionConstant.INTERNAL_SERVER_ERROR,
   })
-  private async create(@Param('experimentId', ValidationUuidParamPipe) experimentId: string, @Body() dto: CreateVariableDto): Promise<CustomResponseType> {
+  private async create(@Param('experimentId', MongoIdValidationPipe) experimentId: string, @Body() dto: CreateVariableDto): Promise<CustomResponseType> {
     return await this.variableService.create(dto, experimentId);
   }
 

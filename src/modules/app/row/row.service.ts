@@ -6,14 +6,13 @@ import { CustomResponseType } from 'src/common/types/customResponseType';
 import { CycleChildEntity, SlideEntity } from 'src/modules/app/database/entities/postgres/slide.entity';
 import { Not, Repository } from 'typeorm';
 import { CustomErrorTypeEnum, ValidationErrorTypeEnum } from '../../../common/enums/errorType.enum';
-import { ButtonElement } from '../database/entities/buttonElement';
 import { RowElementEnum, RowEntity, RowMaxColumnEnum } from '../database/entities/postgres/row.entity';
-import { SliderElement } from '../database/entities/sliderElement';
-import { TextFieldElement } from '../database/entities/textFieldElement';
 import { CreateRowDto } from './dto/createRow.dto';
 import { CreateRowElementDto } from './dto/createRowElement.dto';
 import { UpdateRowElementsDto } from './dto/updateRowElements.dto';
-import { TextInputElement } from '../database/entities/textInputElement';
+import { ButtonElement } from '../database/entities/elements/buttonElement';
+import { SliderElement } from '../database/entities/elements/sliderElement';
+import { TextFieldElement } from '../database/entities/elements/textFieldElement';
 
 @Injectable()
 export class RowService {
@@ -429,7 +428,7 @@ export class RowService {
     }
   }
 
-  private getElementClass(element: RowElementEnum): TextFieldElement | SliderElement | ButtonElement | TextInputElement {
+  private getElementClass(element: RowElementEnum): TextFieldElement | SliderElement | ButtonElement {
     switch (element) {
       case RowElementEnum.TEXT:
         return new TextFieldElement();
@@ -437,8 +436,6 @@ export class RowService {
         return new SliderElement();
       case RowElementEnum.BUTTON:
         return new ButtonElement();
-      case RowElementEnum.INPUT:
-        return new TextInputElement();
       default:
         throw new CustomException({
           statusCode: HttpStatus.UNPROCESSABLE_ENTITY,

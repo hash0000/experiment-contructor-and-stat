@@ -1,11 +1,10 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsNotEmpty, IsString } from 'class-validator';
-import { ExperimentStatusEnum } from '../../database/entities/postgres/experiment.entity';
+import { IsDefined, IsEnum } from 'class-validator';
+import { ExperimentStatusEnum } from '../../database/entities/experiment.entity';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateExperimentStatusDto {
-  @ApiPropertyOptional({ description: 'Experiment status', examples: [ExperimentStatusEnum.PUBLISHED] })
-  @IsIn([ExperimentStatusEnum.PUBLISHED, ExperimentStatusEnum.UNPUBLISHED])
-  @IsNotEmpty()
-  @IsString()
+  @ApiProperty({ enum: ExperimentStatusEnum })
+  @IsEnum(ExperimentStatusEnum)
+  @IsDefined()
   readonly status: ExperimentStatusEnum;
 }

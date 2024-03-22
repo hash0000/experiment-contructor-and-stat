@@ -7,7 +7,7 @@ export class SignInDto {
   @ApiProperty({ example: 'ivan@mail.org', description: 'e-mail' })
   @Transform(({ value }) => trimTransformer(value, 'email'))
   @Length(6, 255)
-  @IsEmail({ ignore_max_length: true })
+  @IsEmail()
   @IsNotEmpty()
   @IsString()
   readonly email: string;

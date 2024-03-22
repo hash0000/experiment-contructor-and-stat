@@ -1,4 +1,4 @@
-import { RowElementEnum } from './postgres/row.entity';
+import { RowElementEnum } from '../postgres/row.entity';
 
 export class StyleFields {
   mainColor: string = null;
@@ -29,12 +29,6 @@ export function getDefaultStyle(elementType: RowElementEnum | 'answer'): StyleFi
       styleFields.position = 1;
       break;
     case RowElementEnum.TEXT:
-      styleFields.mainColor = '#000000';
-      styleFields.secondColor = '#FFFFFF';
-      styleFields.fontSize = 16;
-      styleFields.position = 1;
-      break;
-    case RowElementEnum.INPUT:
       styleFields.mainColor = '#000000';
       styleFields.secondColor = '#FFFFFF';
       styleFields.fontSize = 16;

@@ -14,7 +14,7 @@ async function app() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document, {
-    swaggerOptions: { defaultModelsExpandDepth: -1, docExpansion: 'none' },
+    swaggerOptions: { defaultModelsExpandDepth: -1 },
   });
   await app.listen(port);
 }

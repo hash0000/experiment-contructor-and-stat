@@ -13,7 +13,6 @@ import {
   Length,
   ValidateNested,
 } from 'class-validator';
-import { IsNotBlank } from 'src/common/validators/isNotBlank.constraint';
 import { RowElementEnum } from '../postgres/row.entity';
 import { BaseElementFieldsDto } from './baseElementFields.dto';
 import { StyleFieldsDto } from './styleFields.dto';
@@ -25,9 +24,8 @@ class SliderAnswerDto {
   readonly id: string;
 
   @Length(1, 255)
-  @IsNotBlank()
   @IsString()
-  @IsDefined()
+  @IsNotEmpty()
   readonly value: string;
 
   @IsBoolean()

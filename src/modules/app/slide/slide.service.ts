@@ -6,14 +6,14 @@ import { PostgresDataSource } from 'src/common/configs/typeorm.config';
 import { CustomException } from 'src/common/exceptions/custom.exception';
 import { CustomResponseType } from 'src/common/types/customResponseType';
 import { isEmptyObject } from 'src/common/validators/isEmptyObject.validator';
-import { ObjectLiteral, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { CustomErrorTypeEnum } from '../../../common/enums/errorType.enum';
-import { Variable, VariableDocument } from '../database/entities/mongo/variable.schema';
 import { RowEntity } from '../database/entities/postgres/row.entity';
-import { CycleChildEntity, SlideEntity, cycleChildEntityBaseSelectOptions, slideEntityBaseSelectOptions } from '../database/entities/postgres/slide.entity';
+import { CycleChildEntity, cycleChildEntityBaseSelectOptions, SlideEntity, slideEntityBaseSelectOptions } from '../database/entities/postgres/slide.entity';
 import { UpdateCycleChildDto } from './dto/cycle/updateCycleChild.dto';
 import { UpdateAllSlidesColor } from './dto/updateAllSlidesColor.dto';
 import { UpdateSlideDto } from './dto/updateSlide.dto';
+import { Variable, VariableDocument } from '../database/entities/variable.schema';
 
 @Injectable()
 export class SlideService {
@@ -130,7 +130,6 @@ export class SlideService {
         id: true,
         isCycle: true,
         position: true,
-        training: true,
         experiment: {
           id: true,
         },
@@ -149,7 +148,7 @@ export class SlideService {
         errorTypeCode: CustomErrorTypeEnum.VARIABLE_CAN_NOT_SED_TO_SLIDE,
       });
     } else if (dto?.variableId && slideEntity.isCycle === true) {
-      const variableModel = await this.variableModel.countDocuments({ _id: dto.variableId, experimentId: slideEntity.experiment.id });
+      const variableModel = await this.variableModel.count({ _id: dto.variableId, experimentId: slideEntity.experiment.id });
       if (!variableModel) {
         throw new CustomException({
           statusCode: HttpStatus.FORBIDDEN,
@@ -177,12 +176,6 @@ export class SlideService {
       }
 
       await queryRunner.manager.update(SlideEntity, { id: slideId }, dto);
-
-      if (dto.training) {
-        await queryRunner.manager.update(CycleChildEntity, { cycle: slideId }, { training: true });
-      } else {
-        await queryRunner.manager.update(CycleChildEntity, { cycle: slideId }, { training: false });
-      }
 
       await queryRunner.commitTransaction();
       return {
@@ -323,7 +316,6 @@ export class SlideService {
       },
       select: {
         id: true,
-        training: true,
         experiment: {
           id: true,
         },
@@ -343,7 +335,6 @@ export class SlideService {
       },
       select: {
         position: true,
-        training: true,
       },
     });
     let slidePosition = 1;
@@ -358,30 +349,15 @@ export class SlideService {
         });
       }
     });
-
-    let identifiers: ObjectLiteral;
-
-    if (slideEntity.training) {
-      identifiers = await this.cycleChildRepository.insert({
-        title: `Slide ${slidePosition}`,
-        position: slidePosition,
-        cycle: { id: slideId },
-        training: true,
-        experiment: { id: slideEntity.experiment.id },
-      });
-    } else {
-      identifiers = await this.cycleChildRepository.insert({
-        title: `Slide ${slidePosition}`,
-        position: slidePosition,
-        cycle: { id: slideId },
-        experiment: { id: slideEntity.experiment.id },
-      });
-    }
-
-    //TODO: fix typing
+    const { identifiers } = await this.cycleChildRepository.insert({
+      title: `Slide ${slidePosition}`,
+      position: slidePosition,
+      cycle: { id: slideId },
+      experiment: { id: slideEntity.experiment.id },
+    });
     return {
       statusCode: HttpStatus.CREATED,
-      data: { ...(await this.getByIdCycleChild(identifiers['identifiers'][0].id)) },
+      data: { ...(await this.getByIdCycleChild(identifiers[0].id)) },
     };
   }
 
@@ -546,7 +522,6 @@ export class SlideService {
         ...cycleChildEntityBaseSelectOptions,
         cycle: {
           id: true,
-          variableId: true,
         },
       },
     });
@@ -583,12 +558,10 @@ export class SlideService {
       },
       relations: {
         rows: true,
-        cycle: true,
       },
       select: {
         ...cycleChildEntityBaseSelectOptions,
         rows: true,
-        cycle: { id: true },
       },
     });
   }

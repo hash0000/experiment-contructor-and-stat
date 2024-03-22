@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Res } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import responseDescriptionConstant from 'src/common/constants/responseDescription.constant';
 import { MongoIdValidationPipe } from 'src/common/pipes/mongoIdValidation.pipe';
@@ -89,6 +89,7 @@ export class StatisticController {
 
   @ApiOperation({ summary: 'Get Excel file' })
   @Get('get-excel-file/:experimentId')
+  @ApiBearerAuth()
   @NoAuth()
   @HttpCode(HttpStatus.OK)
   @ApiResponse({
@@ -151,10 +152,5 @@ export class StatisticController {
   })
   private async finishExperiment(@Param('sessionId', MongoIdValidationPipe) sessionId: string, @Body() dto: FinishExperimentDto): Promise<CustomResponseType> {
     return await this.statisticService.finishExperiment(dto, sessionId);
-  }
-
-  @Get('clear-all-sessions')
-  private async clearAllSession() {
-    return await this.statisticService.clearAllSessions();
   }
 }

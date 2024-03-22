@@ -11,7 +11,8 @@ import { UserLanguageEntity } from '../database/entities/postgres/userLanguage.e
 import { JwtStrategy } from './passport/jwt.strategy';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
-import { MinioModule } from '../s3/minio.module';
+import { UserEntityM, UserSchema } from '../database/entities/user.entity';
+import { MongooseModule } from '@nestjs/mongoose';
 
 @Module({
   controllers: [UserController],
@@ -24,9 +25,9 @@ import { MinioModule } from '../s3/minio.module';
       secret: process.env.JWT_SECRET,
     }),
     PassportModule,
+    MongooseModule.forFeature([{ name: UserEntityM.name, schema: UserSchema }]),
     TypeOrmModule.forFeature([UserEntity, UserCodeEntity, UserLanguageEntity, LanguageEntity]),
     MailModule,
-    MinioModule,
   ],
 })
 export class UserModule {}

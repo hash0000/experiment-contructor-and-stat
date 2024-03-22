@@ -2,7 +2,7 @@ import { Type } from 'class-transformer';
 import { IsArray, IsBoolean, IsDefined, IsEnum, IsNotEmpty, IsNumber, IsString, IsUUID, Length, ValidateIf, ValidateNested } from 'class-validator';
 import { RowElementEnum } from 'src/modules/app/database/entities/postgres/row.entity';
 import { IsNotBlank } from '../../../../../common/validators/isNotBlank.constraint';
-import { ActionListEnum, ConditionListEnum, OperatorListEnum } from '../baseElementFields';
+import { OperatorListEnum, ConditionListEnum, ActionListEnum } from '../elements/baseElementFields';
 
 class ConditionItemWithOrder {
   @IsNumber()
